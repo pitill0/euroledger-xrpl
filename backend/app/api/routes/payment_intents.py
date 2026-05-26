@@ -1,4 +1,5 @@
 from decimal import Decimal
+from typing import Annotated
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -9,6 +10,8 @@ from app.models.payment_intent import PaymentIntent
 from app.schemas.payment_intent import PaymentIntentCreate, PaymentIntentRead
 
 router = APIRouter(prefix="/payment-intents", tags=["payment-intents"])
+
+DbSession = Annotated[Session, Depends(get_db)]
 
 
 def generate_payment_reference() -> str:
@@ -22,7 +25,7 @@ def generate_payment_reference() -> str:
 )
 def create_payment_intent(
     payload: PaymentIntentCreate,
-    db: Session = Depends(get_db),
+    db: DbSession,
 ) -> PaymentIntent:
     payment_intent = PaymentIntent(
         reference=generate_payment_reference(),
@@ -41,7 +44,7 @@ def create_payment_intent(
 @router.get("/{payment_intent_id}", response_model=PaymentIntentRead)
 def get_payment_intent(
     payment_intent_id: str,
-    db: Session = Depends(get_db),
+    db: DbSession,
 ) -> PaymentIntent:
     payment_intent = db.get(PaymentIntent, payment_intent_id)
 
