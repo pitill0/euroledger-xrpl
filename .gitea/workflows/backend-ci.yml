@@ -60,3 +60,4 @@ jobs:
       - name: Build backend image
         run: |
           docker compose build backend
+
