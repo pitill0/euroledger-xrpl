@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+from app.api import api_router
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -23,10 +24,4 @@ def root() -> dict[str, str]:
     }
 
 
-@app.get("/health")
-def health() -> dict[str, str]:
-    return {
-        "status": "ok",
-        "service": "euroledger-xrpl-backend",
-        "environment": settings.app_env,
-    }
+app.include_router(api_router)
