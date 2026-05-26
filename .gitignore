@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Internal planning documents
+docs/internal/
+*roadmap.md
+
+# Node / frontend future
+node_modules/
+dist/
+build/
+
+# WordPress / plugin packaging future
+*.zip
+
+# Secrets / keys
+*.key
+*.pem
+*.seed
+secrets/
