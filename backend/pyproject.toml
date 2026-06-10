@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "FastAPI backend for the EuroLedger XRPL proof of concept."
 readme = "README.md"
 requires-python = ">=3.12"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
 authors = [
   { name = "EuroLedger XRPL contributors" }
 ]
@@ -30,3 +30,7 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+exclude = ["alembic*"]
