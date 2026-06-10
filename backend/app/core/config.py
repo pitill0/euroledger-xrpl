@@ -1,5 +1,7 @@
 from functools import lru_cache
+from typing import Any
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -22,6 +24,14 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @field_validator("xrpl_merchant_address", "xrpl_issuer_address", mode="before")
+    @classmethod
+    def empty_string_to_none(cls, value: Any) -> Any:
+        if value == "":
+            return None
+
+        return value
 
     @property
     def database_url(self) -> str:

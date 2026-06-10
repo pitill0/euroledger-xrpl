@@ -26,3 +26,13 @@ def test_xrpl_currency_code_can_be_overridden() -> None:
     settings = Settings(xrpl_currency_code="USD")
 
     assert settings.xrpl_currency_code == "USD"
+
+
+def test_empty_xrpl_addresses_are_normalized_to_none() -> None:
+    settings = Settings(
+        xrpl_merchant_address="",
+        xrpl_issuer_address="",
+    )
+
+    assert settings.xrpl_merchant_address is None
+    assert settings.xrpl_issuer_address is None
