@@ -14,6 +14,7 @@ from app.services.payment_intents import (
     confirm_payment_intent,
     create_payment_intent,
     get_payment_intent,
+    get_payment_intent_by_payment_reference,
 )
 
 router = APIRouter(prefix="/payment-intents", tags=["payment-intents"])
@@ -31,6 +32,22 @@ def create_payment_intent_endpoint(
     db: DbSession,
 ) -> PaymentIntentRead:
     return create_payment_intent(db, payload)
+
+
+@router.get("/by-reference/{reference}", response_model=PaymentIntentRead)
+def get_payment_intent_by_reference_endpoint(
+    reference: str,
+    db: DbSession,
+) -> PaymentIntentRead:
+    payment_intent = get_payment_intent_by_payment_reference(db, reference)
+
+    if payment_intent is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Payment intent not found",
+        )
+
+    return payment_intent
 
 
 @router.get("/{payment_intent_id}", response_model=PaymentIntentRead)

@@ -8,6 +8,7 @@ from app.domain.references import generate_payment_reference
 from app.models.payment_intent import PaymentIntent, PaymentIntentStatus
 from app.repositories.payment_intents import (
     get_payment_intent_by_id,
+    get_payment_intent_by_reference,
     save_payment_intent,
     update_payment_intent,
 )
@@ -33,6 +34,13 @@ def get_payment_intent(
     payment_intent_id: str,
 ) -> PaymentIntent | None:
     return get_payment_intent_by_id(db, payment_intent_id)
+
+
+def get_payment_intent_by_payment_reference(
+    db: Session,
+    reference: str,
+) -> PaymentIntent | None:
+    return get_payment_intent_by_reference(db, reference.upper())
 
 
 def confirm_payment_intent(

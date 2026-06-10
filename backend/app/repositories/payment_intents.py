@@ -1,3 +1,4 @@
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.payment_intent import PaymentIntent
@@ -8,6 +9,14 @@ def get_payment_intent_by_id(
     payment_intent_id: str,
 ) -> PaymentIntent | None:
     return db.get(PaymentIntent, payment_intent_id)
+
+
+def get_payment_intent_by_reference(
+    db: Session,
+    reference: str,
+) -> PaymentIntent | None:
+    statement = select(PaymentIntent).where(PaymentIntent.reference == reference)
+    return db.execute(statement).scalar_one_or_none()
 
 
 def save_payment_intent(
