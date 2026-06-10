@@ -1,0 +1,28 @@
+from app.core.config import Settings
+
+
+def test_database_url_is_built_from_postgres_settings() -> None:
+    settings = Settings(
+        postgres_user="user",
+        postgres_password="password",
+        postgres_host="localhost",
+        postgres_port=5433,
+        postgres_db="database",
+    )
+
+    assert settings.database_url == ("postgresql+psycopg://user:password@localhost:5433/database")
+
+
+def test_xrpl_settings_have_safe_defaults() -> None:
+    settings = Settings()
+
+    assert settings.xrpl_json_rpc_url == "https://s.altnet.rippletest.net:51234/"
+    assert settings.xrpl_currency_code == "EUR"
+    assert settings.xrpl_merchant_address is None
+    assert settings.xrpl_issuer_address is None
+
+
+def test_xrpl_currency_code_can_be_overridden() -> None:
+    settings = Settings(xrpl_currency_code="USD")
+
+    assert settings.xrpl_currency_code == "USD"
