@@ -8,6 +8,7 @@ from app.workers.xrpl_payments import (
     UnsupportedXrplTransactionError,
     process_candidate_xrpl_transaction,
 )
+from app.xrpl.transactions import XrplTransactionParseError
 
 
 @dataclass(frozen=True)
@@ -35,7 +36,10 @@ def scan_xrpl_transactions(
                 db=db,
                 transaction=transaction,
             )
-        except UnsupportedXrplTransactionError:
+        except (
+            UnsupportedXrplTransactionError,
+            XrplTransactionParseError,
+        ):
             skipped += 1
             continue
         except Exception as exc:

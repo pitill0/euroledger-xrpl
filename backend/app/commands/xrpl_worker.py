@@ -6,6 +6,7 @@ from typing import Any
 from app.core.config import get_settings
 from app.db.session import SessionLocal
 from app.workers.xrpl_scanner import XrplTransactionScanResult, scan_xrpl_transactions
+from app.workers.xrpl_sync import synchronize_xrpl_account_transactions
 from app.xrpl.account_transactions import fetch_account_transactions
 from app.xrpl.client import build_xrpl_client
 from app.xrpl.settings import build_xrpl_settings
@@ -106,15 +107,50 @@ def print_scan_result(
             print(f"- {error}")
 
 
+def run_testnet_once(
+    limit: int,
+) -> None:
+    app_settings = get_settings()
+    xrpl_settings = build_xrpl_settings(app_settings)
+
+    if xrpl_settings.merchant_address is None:
+        raise ValueError("XRPL_MERCHANT_ADDRESS must be configured to use testnet mode.")
+
+    client = build_xrpl_client(xrpl_settings)
+
+    with SessionLocal() as db:
+        result = synchronize_xrpl_account_transactions(
+            db=db,
+            client=client,
+            account=xrpl_settings.merchant_address,
+            limit=limit,
+        )
+
+    print("XRPL worker synchronization completed")
+    print(f"fetched={result.fetched}")
+    print(f"processed={result.scan_result.processed}")
+    print(f"skipped={result.scan_result.skipped}")
+    print(f"failed={result.scan_result.failed}")
+    print(f"previous_ledger_index={result.previous_ledger_index}")
+    print(f"last_ledger_index={result.last_ledger_index}")
+
+    if result.scan_result.errors:
+        print("errors:")
+        for error in result.scan_result.errors:
+            print(f"- {error}")
+
+
 def main() -> None:
     args = parse_args()
+
+    if args.testnet:
+        run_testnet_once(limit=args.limit)
+        return
 
     transactions: list[dict[str, Any]] | None = None
 
     if args.fixtures is not None:
         transactions = load_transactions_from_fixture(args.fixtures)
-    elif args.testnet:
-        transactions = fetch_testnet_transactions(limit=args.limit)
 
     result = run_once(transactions)
     print_scan_result(result)

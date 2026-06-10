@@ -281,18 +281,7 @@ def test_main_loads_fixture_when_provided(
     assert "processed=1" in captured.out
 
 
-def test_main_fetches_testnet_transactions(capsys) -> None:
-    transactions = [
-        {
-            "TransactionType": "Payment",
-        },
-    ]
-
-    result = build_scan_result(
-        failed=1,
-        errors=["XRPL transaction does not include a payment reference memo."],
-    )
-
+def test_main_runs_testnet_synchronization() -> None:
     args = Namespace(
         fixtures=None,
         testnet=True,
@@ -305,24 +294,12 @@ def test_main_fetches_testnet_transactions(capsys) -> None:
             return_value=args,
         ),
         patch(
-            "app.commands.xrpl_worker.fetch_testnet_transactions",
-            return_value=transactions,
-        ) as fetch_transactions,
-        patch(
-            "app.commands.xrpl_worker.run_once",
-            return_value=result,
-        ) as run_worker_once,
+            "app.commands.xrpl_worker.run_testnet_once",
+        ) as run_testnet_once,
     ):
         main()
 
-    fetch_transactions.assert_called_once_with(limit=5)
-    run_worker_once.assert_called_once_with(transactions)
-
-    captured = capsys.readouterr()
-
-    assert "processed=0" in captured.out
-    assert "failed=1" in captured.out
-    assert "payment reference memo" in captured.out
+    run_testnet_once.assert_called_once_with(limit=5)
 
 
 def test_main_prints_errors(capsys) -> None:
