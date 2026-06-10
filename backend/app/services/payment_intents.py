@@ -2,8 +2,9 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from app.domain.exceptions import InvalidPaymentIntentStatusTransitionError
+from app.domain.exceptions import InvalidPaymentIntentStatusTransitionError, PaymentValidationError
 from app.domain.payment_status import can_transition_payment_intent_status
+from app.domain.payment_validation import validate_detected_payment_matches_intent
 from app.domain.references import generate_payment_reference
 from app.models.payment_intent import PaymentIntent, PaymentIntentStatus
 from app.repositories.payment_intents import (
@@ -12,7 +13,7 @@ from app.repositories.payment_intents import (
     save_payment_intent,
     update_payment_intent,
 )
-from app.schemas.payment_intent import PaymentIntentCreate
+from app.schemas.payment_intent import PaymentIntentCreate, PaymentIntentDetectedPayment
 
 
 def create_payment_intent(
@@ -60,3 +61,27 @@ def confirm_payment_intent(
     payment_intent.xrpl_transaction_hash = xrpl_transaction_hash
 
     return update_payment_intent(db, payment_intent)
+
+
+def validate_and_confirm_detected_payment(
+    db: Session,
+    detected_payment: PaymentIntentDetectedPayment,
+) -> PaymentIntent:
+    payment_intent = get_payment_intent_by_payment_reference(
+        db=db,
+        reference=detected_payment.reference,
+    )
+
+    if payment_intent is None:
+        raise PaymentValidationError("Payment intent not found for detected payment reference.")
+
+    validate_detected_payment_matches_intent(
+        payment_intent=payment_intent,
+        detected_payment=detected_payment,
+    )
+
+    return confirm_payment_intent(
+        db=db,
+        payment_intent=payment_intent,
+        xrpl_transaction_hash=detected_payment.xrpl_transaction_hash,
+    )

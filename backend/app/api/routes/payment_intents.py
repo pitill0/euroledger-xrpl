@@ -4,10 +4,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.domain.exceptions import InvalidPaymentIntentStatusTransitionError
+from app.domain.exceptions import (
+    InvalidPaymentIntentStatusTransitionError,
+    PaymentValidationError,
+)
 from app.schemas.payment_intent import (
     PaymentIntentConfirm,
     PaymentIntentCreate,
+    PaymentIntentDetectedPayment,
     PaymentIntentRead,
 )
 from app.services.payment_intents import (
@@ -15,6 +19,7 @@ from app.services.payment_intents import (
     create_payment_intent,
     get_payment_intent,
     get_payment_intent_by_payment_reference,
+    validate_and_confirm_detected_payment,
 )
 
 router = APIRouter(prefix="/payment-intents", tags=["payment-intents"])
@@ -32,6 +37,31 @@ def create_payment_intent_endpoint(
     db: DbSession,
 ) -> PaymentIntentRead:
     return create_payment_intent(db, payload)
+
+
+@router.post(
+    "/detected-payments",
+    response_model=PaymentIntentRead,
+)
+def validate_detected_payment_endpoint(
+    payload: PaymentIntentDetectedPayment,
+    db: DbSession,
+) -> PaymentIntentRead:
+    try:
+        return validate_and_confirm_detected_payment(
+            db=db,
+            detected_payment=payload,
+        )
+    except PaymentValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    except InvalidPaymentIntentStatusTransitionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
 
 
 @router.get("/by-reference/{reference}", response_model=PaymentIntentRead)

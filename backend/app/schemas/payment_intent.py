@@ -16,6 +16,15 @@ class PaymentIntentConfirm(BaseModel):
     xrpl_transaction_hash: str = Field(..., min_length=64, max_length=128)
 
 
+class PaymentIntentDetectedPayment(BaseModel):
+    reference: str = Field(..., min_length=4, max_length=64)
+    amount: Decimal = Field(..., gt=0, decimal_places=2)
+    currency: str = Field(default="EUR", min_length=3, max_length=12)
+    xrpl_transaction_hash: str = Field(..., min_length=64, max_length=128)
+    destination: str | None = Field(default=None, max_length=128)
+    issuer: str | None = Field(default=None, max_length=128)
+
+
 class PaymentIntentRead(BaseModel):
     id: str
     reference: str
