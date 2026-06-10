@@ -1,0 +1,19 @@
+[
+  {
+    "TransactionType": "Payment",
+    "Destination": "rMerchantExpectedDestinationAddress",
+    "Amount": {
+      "currency": "EUR",
+      "issuer": "rIssuerAddress",
+      "value": "25.00"
+    },
+    "Memos": [
+      {
+        "Memo": {
+          "MemoData": "454C2D463739463043314636323431"
+        }
+      }
+    ],
+    "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+  }
+]
