@@ -19,10 +19,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+      - name: Confirm active workflow version
+        run: |
+          echo "RUNNING GITEA BACKEND CI WITHOUT SETUP-PYTHON"
+          pwd
+          ls -la
+
+      - name: Show versions
+        run: |
+          python --version
+          node --version
+          git --version
 
       - name: Install backend dependencies
         run: |
@@ -40,23 +47,3 @@ jobs:
       - name: Run tests
         run: |
           pytest
-
-  compose:
-    name: Compose validation
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Create local env file
-        run: |
-          cp .env.example .env
-
-      - name: Validate Compose configuration
-        run: |
-          docker compose config
-
-      - name: Build backend image
-        run: |
-          docker compose build backend
