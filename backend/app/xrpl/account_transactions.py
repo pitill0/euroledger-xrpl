@@ -18,22 +18,44 @@ def fetch_account_transactions(
     if not account:
         raise XrplAccountTransactionFetchError("XRPL account address is required.")
 
-    request = AccountTx(
-        account=account,
-        ledger_index_min=ledger_index_min,
-        ledger_index_max=-1,
-        binary=False,
-        forward=ledger_index_min >= 0,
-        limit=limit,
-    )
-    response = client.request(request)
+    transactions: list[dict[str, Any]] = []
+    marker: Any | None = None
 
-    if not response.is_successful():
-        raise XrplAccountTransactionFetchError(f"XRPL account_tx request failed: {response.result}")
+    while True:
+        request = AccountTx(
+            account=account,
+            ledger_index_min=ledger_index_min,
+            ledger_index_max=-1,
+            binary=False,
+            forward=ledger_index_min >= 0,
+            limit=limit,
+            marker=marker,
+        )
 
-    transactions = response.result.get("transactions", [])
+        response = client.request(request)
 
-    return [extract_transaction_payload(transaction) for transaction in transactions]
+        if not response.is_successful():
+            raise XrplAccountTransactionFetchError(
+                f"XRPL account_tx request failed: {response.result}"
+            )
+
+        page_transactions = response.result.get("transactions", [])
+
+        if not isinstance(page_transactions, list):
+            raise XrplAccountTransactionFetchError(
+                "XRPL account_tx response contains an invalid transactions field."
+            )
+
+        transactions.extend(
+            extract_transaction_payload(transaction) for transaction in page_transactions
+        )
+
+        marker = response.result.get("marker")
+
+        if marker is None:
+            break
+
+    return transactions
 
 
 def extract_transaction_payload(
