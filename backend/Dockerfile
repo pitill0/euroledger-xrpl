@@ -9,6 +9,7 @@ COPY pyproject.toml ./
 COPY README.md ./
 COPY app ./app
 COPY tests ./tests
+COPY fixtures ./fixtures
 COPY alembic ./alembic
 COPY alembic.ini ./alembic.ini
 
