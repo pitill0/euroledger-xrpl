@@ -12,6 +12,10 @@ class PaymentIntentCreate(BaseModel):
     description: str | None = Field(default=None, max_length=255)
 
 
+class PaymentIntentConfirm(BaseModel):
+    xrpl_transaction_hash: str = Field(..., min_length=64, max_length=128)
+
+
 class PaymentIntentRead(BaseModel):
     id: str
     reference: str

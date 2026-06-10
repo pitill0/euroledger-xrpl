@@ -19,3 +19,13 @@ def save_payment_intent(
     db.refresh(payment_intent)
 
     return payment_intent
+
+
+def update_payment_intent(
+    db: Session,
+    payment_intent: PaymentIntent,
+) -> PaymentIntent:
+    db.commit()
+    db.refresh(payment_intent)
+
+    return payment_intent
