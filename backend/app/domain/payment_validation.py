@@ -29,3 +29,12 @@ def validate_detected_payment_matches_intent(
 
     if not detected_payment.xrpl_transaction_hash:
         raise PaymentValidationError("Detected payment must include an XRPL transaction hash.")
+
+    if payment_intent.expected_destination is not None:
+        if detected_payment.destination is None:
+            raise PaymentValidationError("Detected payment must include a destination.")
+
+        if payment_intent.expected_destination != detected_payment.destination:
+            raise PaymentValidationError(
+                "Detected payment destination does not match payment intent."
+            )

@@ -56,6 +56,11 @@ class PaymentIntent(Base):
         nullable=True,
     )
 
+    expected_destination: Mapped[str | None] = mapped_column(
+        String(128),
+        nullable=True,
+    )
+
     xrpl_transaction_hash: Mapped[str | None] = mapped_column(
         String(128),
         nullable=True,

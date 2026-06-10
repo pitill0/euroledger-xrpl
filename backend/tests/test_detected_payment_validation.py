@@ -8,6 +8,7 @@ from app.models.payment_intent import PaymentIntent, PaymentIntentStatus
 from app.schemas.payment_intent import PaymentIntentDetectedPayment
 
 XRPL_TRANSACTION_HASH = "A" * 64
+EXPECTED_DESTINATION = "rMerchantExpectedDestinationAddress"
 
 
 def build_payment_intent(
@@ -16,12 +17,14 @@ def build_payment_intent(
     currency: str = "EUR",
     reference: str = "EL-ABC123DEF456",
     status: PaymentIntentStatus = PaymentIntentStatus.pending,
+    expected_destination: str | None = None,
 ) -> PaymentIntent:
     return PaymentIntent(
         reference=reference,
         amount=Decimal(amount),
         currency=currency,
         status=status,
+        expected_destination=expected_destination,
     )
 
 
@@ -30,12 +33,14 @@ def build_detected_payment(
     amount: str = "25.00",
     currency: str = "EUR",
     reference: str = "EL-ABC123DEF456",
+    destination: str | None = None,
 ) -> PaymentIntentDetectedPayment:
     return PaymentIntentDetectedPayment(
         reference=reference,
         amount=Decimal(amount),
         currency=currency,
         xrpl_transaction_hash=XRPL_TRANSACTION_HASH,
+        destination=destination,
     )
 
 
@@ -64,6 +69,29 @@ def test_detected_payment_rejects_amount_mismatch() -> None:
 def test_detected_payment_rejects_currency_mismatch() -> None:
     payment_intent = build_payment_intent(currency="EUR")
     detected_payment = build_detected_payment(currency="USD")
+
+    with pytest.raises(PaymentValidationError):
+        validate_detected_payment_matches_intent(payment_intent, detected_payment)
+
+
+def test_detected_payment_matches_expected_destination() -> None:
+    payment_intent = build_payment_intent(expected_destination=EXPECTED_DESTINATION)
+    detected_payment = build_detected_payment(destination=EXPECTED_DESTINATION)
+
+    validate_detected_payment_matches_intent(payment_intent, detected_payment)
+
+
+def test_detected_payment_rejects_missing_destination_when_expected() -> None:
+    payment_intent = build_payment_intent(expected_destination=EXPECTED_DESTINATION)
+    detected_payment = build_detected_payment(destination=None)
+
+    with pytest.raises(PaymentValidationError):
+        validate_detected_payment_matches_intent(payment_intent, detected_payment)
+
+
+def test_detected_payment_rejects_destination_mismatch() -> None:
+    payment_intent = build_payment_intent(expected_destination=EXPECTED_DESTINATION)
+    detected_payment = build_detected_payment(destination="rDifferentDestinationAddress")
 
     with pytest.raises(PaymentValidationError):
         validate_detected_payment_matches_intent(payment_intent, detected_payment)

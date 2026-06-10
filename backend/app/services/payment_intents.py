@@ -25,6 +25,7 @@ def create_payment_intent(
         amount=Decimal(payload.amount),
         currency=payload.currency.upper(),
         description=payload.description,
+        expected_destination=payload.expected_destination,
     )
 
     return save_payment_intent(db, payment_intent)

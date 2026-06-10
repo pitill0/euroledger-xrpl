@@ -10,6 +10,7 @@ class PaymentIntentCreate(BaseModel):
     amount: Decimal = Field(..., gt=0, decimal_places=2)
     currency: str = Field(default="EUR", min_length=3, max_length=12)
     description: str | None = Field(default=None, max_length=255)
+    expected_destination: str | None = Field(default=None, max_length=128)
 
 
 class PaymentIntentConfirm(BaseModel):
@@ -32,6 +33,7 @@ class PaymentIntentRead(BaseModel):
     currency: str
     status: PaymentIntentStatus
     description: str | None
+    expected_destination: str | None
     xrpl_transaction_hash: str | None
     created_at: datetime
     updated_at: datetime
