@@ -75,6 +75,8 @@ def synchronize_xrpl_account_transactions(
     if previous_ledger_index is not None:
         ledger_index_min = previous_ledger_index + 1
 
+    transactions: list[dict[str, Any]] = []
+
     try:
         transactions = fetch_account_transactions(
             client=client,
@@ -101,12 +103,20 @@ def synchronize_xrpl_account_transactions(
             mark_worker_cycle_succeeded(
                 db=db,
                 state=state,
+                fetched=len(transactions),
+                processed=scan_result.processed,
+                skipped=scan_result.skipped,
+                failed=scan_result.failed,
             )
         else:
             mark_worker_cycle_failed(
                 db=db,
                 state=state,
                 error=build_scan_failure_message(scan_result),
+                fetched=len(transactions),
+                processed=scan_result.processed,
+                skipped=scan_result.skipped,
+                failed=scan_result.failed,
             )
     except Exception as exc:
         db.rollback()
@@ -120,6 +130,7 @@ def synchronize_xrpl_account_transactions(
             db=db,
             state=state,
             error=str(exc),
+            fetched=len(transactions),
         )
 
         raise

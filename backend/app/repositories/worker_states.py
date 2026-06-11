@@ -28,6 +28,12 @@ def get_or_create_worker_state(
     state = WorkerState(
         worker_name=worker_name,
         last_ledger_index=None,
+        successful_cycles_total=0,
+        failed_cycles_total=0,
+        fetched_transactions_total=0,
+        processed_transactions_total=0,
+        skipped_transactions_total=0,
+        failed_transactions_total=0,
     )
 
     db.add(state)
@@ -68,9 +74,18 @@ def mark_worker_cycle_succeeded(
     db: Session,
     state: WorkerState,
     *,
+    fetched: int,
+    processed: int,
+    skipped: int,
+    failed: int,
     succeeded_at: datetime | None = None,
 ) -> WorkerState:
     state.last_success_at = succeeded_at or utc_now()
+    state.successful_cycles_total += 1
+    state.fetched_transactions_total += fetched
+    state.processed_transactions_total += processed
+    state.skipped_transactions_total += skipped
+    state.failed_transactions_total += failed
 
     db.commit()
     db.refresh(state)
@@ -83,10 +98,19 @@ def mark_worker_cycle_failed(
     state: WorkerState,
     error: str,
     *,
+    fetched: int = 0,
+    processed: int = 0,
+    skipped: int = 0,
+    failed: int = 0,
     failed_at: datetime | None = None,
 ) -> WorkerState:
     state.last_error_at = failed_at or utc_now()
     state.last_error = error
+    state.failed_cycles_total += 1
+    state.fetched_transactions_total += fetched
+    state.processed_transactions_total += processed
+    state.skipped_transactions_total += skipped
+    state.failed_transactions_total += failed
 
     db.commit()
     db.refresh(state)
