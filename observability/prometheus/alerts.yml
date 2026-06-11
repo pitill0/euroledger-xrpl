@@ -1,0 +1,97 @@
+groups:
+  - name: euroledger-backend
+    interval: 30s
+    rules:
+      - alert: EuroLedgerBackendDown
+        expr: up{job="euroledger-xrpl-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: backend
+        annotations:
+          summary: EuroLedger backend is unavailable
+          description: Prometheus has been unable to scrape the EuroLedger backend for at least one minute.
+
+  - name: euroledger-xrpl-worker
+    interval: 30s
+    rules:
+      - alert: EuroLedgerXrplWorkerDegraded
+        expr: euroledger_xrpl_worker_health{status="degraded"} == 1
+        for: 2m
+        labels:
+          severity: warning
+          component: xrpl-worker
+        annotations:
+          summary: XRPL worker is degraded
+          description: The latest XRPL worker cycle failed and no newer successful cycle has recovered the worker.
+
+      - alert: EuroLedgerXrplWorkerStale
+        expr: euroledger_xrpl_worker_health{status="stale"} == 1
+        for: 2m
+        labels:
+          severity: critical
+          component: xrpl-worker
+        annotations:
+          summary: XRPL worker state is stale
+          description: The XRPL worker has not completed a successful synchronization within the configured freshness threshold.
+
+      - alert: EuroLedgerXrplWorkerFailureDetected
+        expr: increase(euroledger_xrpl_worker_cycles_total{result="failed"}[10m]) > 0
+        labels:
+          severity: warning
+          component: xrpl-worker
+        annotations:
+          summary: XRPL worker failure detected
+          description: At least one XRPL worker cycle failed during the last ten minutes.
+
+      - alert: EuroLedgerXrplWorkerNoRecentSuccess
+        expr: euroledger_xrpl_worker_last_success_age_seconds > 300
+        for: 2m
+        labels:
+          severity: critical
+          component: xrpl-worker
+        annotations:
+          summary: XRPL worker has no recent successful synchronization
+          description: The latest successful XRPL synchronization is more than five minutes old.
+
+  - name: euroledger-payment-intent-expirer
+    interval: 30s
+    rules:
+      - alert: EuroLedgerPaymentIntentExpirerDegraded
+        expr: euroledger_payment_intent_expiration_health{status="degraded"} == 1
+        for: 2m
+        labels:
+          severity: warning
+          component: payment-intent-expirer
+        annotations:
+          summary: Payment intent expirer is degraded
+          description: The latest payment intent expiration cycle failed and no newer successful cycle has recovered the service.
+
+      - alert: EuroLedgerPaymentIntentExpirerStale
+        expr: euroledger_payment_intent_expiration_health{status="stale"} == 1
+        for: 2m
+        labels:
+          severity: critical
+          component: payment-intent-expirer
+        annotations:
+          summary: Payment intent expirer state is stale
+          description: The payment intent expirer has not completed a successful cycle within the configured freshness threshold.
+
+      - alert: EuroLedgerPaymentIntentExpirerFailureDetected
+        expr: increase(euroledger_payment_intent_expiration_cycles_total{result="failed"}[10m]) > 0
+        labels:
+          severity: warning
+          component: payment-intent-expirer
+        annotations:
+          summary: Payment intent expiration failure detected
+          description: At least one payment intent expiration cycle failed during the last ten minutes.
+
+      - alert: EuroLedgerPaymentIntentExpirerNoRecentSuccess
+        expr: euroledger_payment_intent_expiration_last_success_age_seconds > 300
+        for: 2m
+        labels:
+          severity: critical
+          component: payment-intent-expirer
+        annotations:
+          summary: Payment intent expirer has no recent successful cycle
+          description: The latest successful payment intent expiration cycle is more than five minutes old.
