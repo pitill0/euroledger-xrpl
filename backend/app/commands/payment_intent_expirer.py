@@ -1,0 +1,188 @@
+import argparse
+import logging
+import signal
+from collections.abc import Callable
+from threading import Event
+from types import FrameType
+
+from app.db.session import SessionLocal
+from app.services.payment_intents import (
+    PaymentIntentExpirationResult,
+    expire_pending_payment_intents,
+)
+
+LOGGER = logging.getLogger(__name__)
+
+SignalHandler = Callable[[int, FrameType | None], None]
+
+
+def configure_logging() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format=("%(asctime)s level=%(levelname)s logger=%(name)s %(message)s"),
+        datefmt="%Y-%m-%dT%H:%M:%S%z",
+    )
+
+
+def positive_integer(value: str) -> int:
+    parsed_value = int(value)
+
+    if parsed_value <= 0:
+        raise argparse.ArgumentTypeError(
+            "value must be greater than zero",
+        )
+
+    return parsed_value
+
+
+def positive_poll_interval(value: str) -> float:
+    parsed_value = float(value)
+
+    if parsed_value <= 0:
+        raise argparse.ArgumentTypeError(
+            "poll interval must be greater than zero",
+        )
+
+    return parsed_value
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Expire pending EuroLedger payment intents.",
+    )
+
+    parser.add_argument(
+        "--limit",
+        type=positive_integer,
+        default=100,
+        help="Maximum number of payment intents to expire per cycle.",
+    )
+
+    parser.add_argument(
+        "--poll-interval",
+        type=positive_poll_interval,
+        default=None,
+        metavar="SECONDS",
+        help="Repeat expiration every SECONDS instead of running once.",
+    )
+
+    return parser.parse_args()
+
+
+def run_once(
+    *,
+    limit: int,
+) -> PaymentIntentExpirationResult:
+    with SessionLocal() as db:
+        return expire_pending_payment_intents(
+            db=db,
+            limit=limit,
+        )
+
+
+def log_result(
+    result: PaymentIntentExpirationResult,
+) -> None:
+    LOGGER.info(
+        "event=payment_intent_expiration_completed expired=%d limit=%d",
+        result.expired,
+        result.limit,
+    )
+
+
+def build_stop_handler(
+    stop_event: Event,
+) -> SignalHandler:
+    def handle_stop_signal(
+        signum: int,
+        frame: FrameType | None,
+    ) -> None:
+        del frame
+
+        LOGGER.info(
+            "event=payment_intent_expiration_stop_requested signal=%d",
+            signum,
+        )
+
+        stop_event.set()
+
+    return handle_stop_signal
+
+
+def run_polling(
+    *,
+    limit: int,
+    poll_interval: float,
+    stop_event: Event | None = None,
+) -> None:
+    worker_stop_event = stop_event or Event()
+    stop_handler = build_stop_handler(worker_stop_event)
+
+    previous_sigint_handler = signal.signal(
+        signal.SIGINT,
+        stop_handler,
+    )
+    previous_sigterm_handler = signal.signal(
+        signal.SIGTERM,
+        stop_handler,
+    )
+
+    LOGGER.info(
+        ("event=payment_intent_expiration_polling_started limit=%d poll_interval=%g"),
+        limit,
+        poll_interval,
+    )
+
+    try:
+        while not worker_stop_event.is_set():
+            try:
+                result = run_once(
+                    limit=limit,
+                )
+                log_result(result)
+            except Exception:
+                LOGGER.exception(
+                    "event=payment_intent_expiration_failed",
+                )
+
+            if worker_stop_event.wait(poll_interval):
+                break
+    except KeyboardInterrupt:
+        LOGGER.info(
+            "event=payment_intent_expiration_keyboard_interrupt",
+        )
+        worker_stop_event.set()
+    finally:
+        signal.signal(
+            signal.SIGINT,
+            previous_sigint_handler,
+        )
+        signal.signal(
+            signal.SIGTERM,
+            previous_sigterm_handler,
+        )
+
+        LOGGER.info(
+            "event=payment_intent_expiration_polling_stopped",
+        )
+
+
+def main() -> None:
+    configure_logging()
+    args = parse_args()
+
+    if args.poll_interval is not None:
+        run_polling(
+            limit=args.limit,
+            poll_interval=args.poll_interval,
+        )
+        return
+
+    result = run_once(
+        limit=args.limit,
+    )
+    log_result(result)
+
+
+if __name__ == "__main__":
+    main()

@@ -11,6 +11,11 @@ class PaymentIntentCreate(BaseModel):
     currency: str = Field(default="EUR", min_length=3, max_length=12)
     description: str | None = Field(default=None, max_length=255)
     expected_destination: str | None = Field(default=None, max_length=128)
+    expires_in_seconds: int = Field(
+        default=900,
+        ge=60,
+        le=86400,
+    )
 
 
 class PaymentIntentConfirm(BaseModel):
@@ -35,6 +40,7 @@ class PaymentIntentRead(BaseModel):
     description: str | None
     expected_destination: str | None
     xrpl_transaction_hash: str | None
+    expires_at: datetime
     created_at: datetime
     updated_at: datetime
 

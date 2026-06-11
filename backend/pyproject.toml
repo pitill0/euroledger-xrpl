@@ -32,6 +32,7 @@ dev = [
 
 [project.scripts]
 xrpl-worker = "app.commands.xrpl_worker:main"
+payment-intent-expirer = "app.commands.payment_intent_expirer:main"
 
 [tool.setuptools.packages.find]
 include = ["app*"]
