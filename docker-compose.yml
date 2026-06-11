@@ -15,7 +15,7 @@ services:
       - ./backend/alembic.ini:/app/alembic.ini
       - ./backend/fixtures:/app/fixtures
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()\""]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready').read()\""]
       interval: 10s
       timeout: 5s
       retries: 5
