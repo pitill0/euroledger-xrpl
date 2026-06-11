@@ -24,6 +24,30 @@ services:
       - postgres
     restart: unless-stopped
 
+  xrpl-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: euroledger-xrpl-worker
+    command:
+      - xrpl-worker
+      - --testnet
+      - --limit
+      - "${XRPL_WORKER_LIMIT:-20}"
+      - --poll-interval
+      - "${XRPL_WORKER_POLL_INTERVAL:-30}"
+    env_file:
+      - .env
+    volumes:
+      - ./backend/app:/app/app
+      - ./backend/tests:/app/tests
+      - ./backend/alembic:/app/alembic
+      - ./backend/alembic.ini:/app/alembic.ini
+      - ./backend/fixtures:/app/fixtures
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
   postgres:
     image: postgres:16-alpine
     container_name: euroledger-xrpl-postgres
