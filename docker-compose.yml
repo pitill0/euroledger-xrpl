@@ -52,6 +52,29 @@ services:
       - postgres
     restart: unless-stopped
 
+  payment-intent-expirer:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: euroledger-payment-intent-expirer
+    command:
+      - payment-intent-expirer
+      - --limit
+      - "${PAYMENT_INTENT_EXPIRER_LIMIT:-100}"
+      - --poll-interval
+      - "${PAYMENT_INTENT_EXPIRER_POLL_INTERVAL:-60}"
+    env_file:
+      - .env
+    volumes:
+      - ./backend/app:/app/app
+      - ./backend/tests:/app/tests
+      - ./backend/alembic:/app/alembic
+      - ./backend/alembic.ini:/app/alembic.ini
+      - ./backend/fixtures:/app/fixtures
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
   postgres:
     image: postgres:16-alpine
     container_name: euroledger-xrpl-postgres
