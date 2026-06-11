@@ -1,3 +1,4 @@
+import logging
 import signal
 from argparse import Namespace
 from unittest.mock import Mock, call, patch
@@ -58,7 +59,7 @@ def test_parse_args_accepts_testnet_polling() -> None:
 
 
 def test_parse_args_rejects_polling_without_testnet(
-    capsys,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     with (
         patch(
@@ -130,17 +131,26 @@ def test_main_keeps_testnet_one_shot_mode() -> None:
     run_polling.assert_not_called()
 
 
-def test_stop_handler_sets_stop_event() -> None:
+def test_stop_handler_sets_stop_event(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     stop_event = Mock()
 
     handler = build_stop_handler(stop_event)
-    handler(signal.SIGTERM, None)
+
+    with caplog.at_level(
+        logging.INFO,
+        logger="app.commands.xrpl_worker",
+    ):
+        handler(signal.SIGTERM, None)
 
     stop_event.set.assert_called_once_with()
 
+    assert f"event=xrpl_polling_stop_requested signal={signal.SIGTERM}" in caplog.messages
+
 
 def test_run_testnet_polling_repeats_until_stop_event_is_set(
-    capsys,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     stop_event = Mock()
     stop_event.is_set.side_effect = [
@@ -168,6 +178,10 @@ def test_run_testnet_polling_repeats_until_stop_event_is_set(
         patch(
             "app.commands.xrpl_worker.run_testnet_once",
         ) as run_once,
+        caplog.at_level(
+            logging.INFO,
+            logger="app.commands.xrpl_worker",
+        ),
     ):
         run_testnet_polling(
             limit=5,
@@ -196,14 +210,12 @@ def test_run_testnet_polling_repeats_until_stop_event_is_set(
         previous_sigterm_handler,
     )
 
-    captured = capsys.readouterr()
-
-    assert "XRPL worker polling started interval=30s" in captured.out
-    assert "XRPL worker polling stopped" in captured.out
+    assert "event=xrpl_polling_started limit=5 poll_interval=30" in caplog.messages
+    assert "event=xrpl_polling_stopped" in caplog.messages
 
 
 def test_run_testnet_polling_continues_after_cycle_error(
-    capsys,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     stop_event = Mock()
     stop_event.is_set.side_effect = [
@@ -232,6 +244,10 @@ def test_run_testnet_polling_continues_after_cycle_error(
                 None,
             ],
         ) as run_once,
+        caplog.at_level(
+            logging.ERROR,
+            logger="app.commands.xrpl_worker",
+        ),
     ):
         run_testnet_polling(
             limit=5,
@@ -240,15 +256,18 @@ def test_run_testnet_polling_continues_after_cycle_error(
         )
 
     assert run_once.call_count == 2
+    assert "event=xrpl_sync_failed" in caplog.messages
 
-    captured = capsys.readouterr()
+    error_record = next(
+        record for record in caplog.records if record.getMessage() == "event=xrpl_sync_failed"
+    )
 
-    assert "XRPL worker synchronization failed: temporary XRPL failure" in captured.err
-    assert "XRPL worker polling stopped" in captured.out
+    assert error_record.levelno == logging.ERROR
+    assert error_record.exc_info is not None
 
 
 def test_run_testnet_polling_handles_keyboard_interrupt(
-    capsys,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     stop_event = Mock()
     stop_event.is_set.return_value = False
@@ -267,6 +286,10 @@ def test_run_testnet_polling_handles_keyboard_interrupt(
             "app.commands.xrpl_worker.run_testnet_once",
             side_effect=KeyboardInterrupt,
         ),
+        caplog.at_level(
+            logging.INFO,
+            logger="app.commands.xrpl_worker",
+        ),
     ):
         run_testnet_polling(
             limit=5,
@@ -277,5 +300,5 @@ def test_run_testnet_polling_handles_keyboard_interrupt(
     stop_event.set.assert_called_once_with()
     stop_event.wait.assert_not_called()
 
-    captured = capsys.readouterr()
-    assert "XRPL worker polling stopped" in captured.out
+    assert "event=xrpl_polling_keyboard_interrupt" in caplog.messages
+    assert "event=xrpl_polling_stopped" in caplog.messages

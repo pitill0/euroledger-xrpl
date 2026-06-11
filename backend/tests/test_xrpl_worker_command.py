@@ -1,4 +1,5 @@
 import json
+import logging
 from argparse import Namespace
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -6,8 +7,10 @@ from unittest.mock import Mock, patch
 import pytest
 
 from app.commands.xrpl_worker import (
+    configure_logging,
     fetch_testnet_transactions,
     load_transactions_from_fixture,
+    log_scan_result,
     main,
     run_once,
 )
@@ -28,6 +31,17 @@ def build_scan_result(
         failed=failed,
         confirmed_payment_intents=[],
         errors=errors or [],
+    )
+
+
+def test_configure_logging_uses_structured_format() -> None:
+    with patch("app.commands.xrpl_worker.logging.basicConfig") as basic_config:
+        configure_logging()
+
+    basic_config.assert_called_once_with(
+        level=logging.INFO,
+        format=("%(asctime)s level=%(levelname)s logger=%(name)s %(message)s"),
+        datefmt="%Y-%m-%dT%H:%M:%S%z",
     )
 
 
@@ -207,7 +221,43 @@ def test_run_once_uses_sample_transactions_when_not_provided() -> None:
     assert result == expected_result
 
 
-def test_main_prints_scan_summary(capsys) -> None:
+def test_log_scan_result_logs_summary(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    result = build_scan_result(
+        processed=1,
+        skipped=2,
+    )
+
+    with caplog.at_level(
+        logging.INFO,
+        logger="app.commands.xrpl_worker",
+    ):
+        log_scan_result(result)
+
+    assert "event=xrpl_scan_completed processed=1 skipped=2 failed=0" in caplog.messages
+
+
+def test_log_scan_result_logs_errors_as_warnings(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    result = build_scan_result(
+        failed=1,
+        errors=["Invalid XRPL transaction"],
+    )
+
+    with caplog.at_level(
+        logging.WARNING,
+        logger="app.commands.xrpl_worker",
+    ):
+        log_scan_result(result)
+
+    assert "event=xrpl_scan_error error='Invalid XRPL transaction'" in caplog.messages
+
+
+def test_main_logs_scan_summary(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     result = build_scan_result(
         processed=1,
         skipped=2,
@@ -217,6 +267,7 @@ def test_main_prints_scan_summary(capsys) -> None:
         fixtures=None,
         testnet=False,
         limit=20,
+        poll_interval=None,
     )
 
     with (
@@ -228,20 +279,19 @@ def test_main_prints_scan_summary(capsys) -> None:
             "app.commands.xrpl_worker.run_once",
             return_value=result,
         ),
+        caplog.at_level(
+            logging.INFO,
+            logger="app.commands.xrpl_worker",
+        ),
     ):
         main()
 
-    captured = capsys.readouterr()
-
-    assert "XRPL worker scan completed" in captured.out
-    assert "processed=1" in captured.out
-    assert "skipped=2" in captured.out
-    assert "failed=0" in captured.out
+    assert "event=xrpl_scan_completed processed=1 skipped=2 failed=0" in caplog.messages
 
 
 def test_main_loads_fixture_when_provided(
     tmp_path: Path,
-    capsys,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     fixture_path = tmp_path / "transactions.json"
     transactions = [
@@ -261,6 +311,7 @@ def test_main_loads_fixture_when_provided(
         fixtures=fixture_path,
         testnet=False,
         limit=20,
+        poll_interval=None,
     )
 
     with (
@@ -272,13 +323,16 @@ def test_main_loads_fixture_when_provided(
             "app.commands.xrpl_worker.run_once",
             return_value=result,
         ) as run_worker_once,
+        caplog.at_level(
+            logging.INFO,
+            logger="app.commands.xrpl_worker",
+        ),
     ):
         main()
 
     run_worker_once.assert_called_once_with(transactions)
 
-    captured = capsys.readouterr()
-    assert "processed=1" in captured.out
+    assert "event=xrpl_scan_completed processed=1 skipped=0 failed=0" in caplog.messages
 
 
 def test_main_runs_testnet_synchronization() -> None:
@@ -286,6 +340,7 @@ def test_main_runs_testnet_synchronization() -> None:
         fixtures=None,
         testnet=True,
         limit=5,
+        poll_interval=None,
     )
 
     with (
@@ -300,33 +355,3 @@ def test_main_runs_testnet_synchronization() -> None:
         main()
 
     run_testnet_once.assert_called_once_with(limit=5)
-
-
-def test_main_prints_errors(capsys) -> None:
-    result = build_scan_result(
-        failed=1,
-        errors=["Invalid XRPL transaction"],
-    )
-
-    args = Namespace(
-        fixtures=None,
-        testnet=False,
-        limit=20,
-    )
-
-    with (
-        patch(
-            "app.commands.xrpl_worker.parse_args",
-            return_value=args,
-        ),
-        patch(
-            "app.commands.xrpl_worker.run_once",
-            return_value=result,
-        ),
-    ):
-        main()
-
-    captured = capsys.readouterr()
-
-    assert "errors:" in captured.out
-    assert "- Invalid XRPL transaction" in captured.out

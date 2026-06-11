@@ -1,7 +1,7 @@
 import argparse
 import json
+import logging
 import signal
-import sys
 from collections.abc import Callable
 from pathlib import Path
 from threading import Event
@@ -16,7 +16,17 @@ from app.xrpl.account_transactions import fetch_account_transactions
 from app.xrpl.client import build_xrpl_client
 from app.xrpl.settings import build_xrpl_settings
 
+LOGGER = logging.getLogger(__name__)
+
 SignalHandler = Callable[[int, FrameType | None], None]
+
+
+def configure_logging() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format=("%(asctime)s level=%(levelname)s logger=%(name)s %(message)s"),
+        datefmt="%Y-%m-%dT%H:%M:%S%z",
+    )
 
 
 def build_sample_transactions() -> list[dict[str, Any]]:
@@ -124,18 +134,21 @@ def run_once(
         )
 
 
-def print_scan_result(
+def log_scan_result(
     result: XrplTransactionScanResult,
 ) -> None:
-    print("XRPL worker scan completed")
-    print(f"processed={result.processed}")
-    print(f"skipped={result.skipped}")
-    print(f"failed={result.failed}")
+    LOGGER.info(
+        "event=xrpl_scan_completed processed=%d skipped=%d failed=%d",
+        result.processed,
+        result.skipped,
+        result.failed,
+    )
 
-    if result.errors:
-        print("errors:")
-        for error in result.errors:
-            print(f"- {error}")
+    for error in result.errors:
+        LOGGER.warning(
+            "event=xrpl_scan_error error=%r",
+            error,
+        )
 
 
 def run_testnet_once(
@@ -157,18 +170,29 @@ def run_testnet_once(
             limit=limit,
         )
 
-    print("XRPL worker synchronization completed")
-    print(f"fetched={result.fetched}")
-    print(f"processed={result.scan_result.processed}")
-    print(f"skipped={result.scan_result.skipped}")
-    print(f"failed={result.scan_result.failed}")
-    print(f"previous_ledger_index={result.previous_ledger_index}")
-    print(f"last_ledger_index={result.last_ledger_index}")
+    LOGGER.info(
+        (
+            "event=xrpl_sync_completed "
+            "fetched=%d "
+            "processed=%d "
+            "skipped=%d "
+            "failed=%d "
+            "previous_ledger_index=%s "
+            "last_ledger_index=%s"
+        ),
+        result.fetched,
+        result.scan_result.processed,
+        result.scan_result.skipped,
+        result.scan_result.failed,
+        result.previous_ledger_index,
+        result.last_ledger_index,
+    )
 
-    if result.scan_result.errors:
-        print("errors:")
-        for error in result.scan_result.errors:
-            print(f"- {error}")
+    for error in result.scan_result.errors:
+        LOGGER.warning(
+            "event=xrpl_sync_validation_error error=%r",
+            error,
+        )
 
 
 def build_stop_handler(stop_event: Event) -> SignalHandler:
@@ -176,7 +200,12 @@ def build_stop_handler(stop_event: Event) -> SignalHandler:
         signum: int,
         frame: FrameType | None,
     ) -> None:
-        del signum, frame
+        del frame
+
+        LOGGER.info(
+            "event=xrpl_polling_stop_requested signal=%d",
+            signum,
+        )
         stop_event.set()
 
     return handle_stop_signal
@@ -200,21 +229,27 @@ def run_testnet_polling(
         stop_handler,
     )
 
-    print(f"XRPL worker polling started interval={poll_interval:g}s")
+    LOGGER.info(
+        "event=xrpl_polling_started limit=%d poll_interval=%g",
+        limit,
+        poll_interval,
+    )
 
     try:
         while not worker_stop_event.is_set():
             try:
                 run_testnet_once(limit=limit)
-            except Exception as exc:
-                print(
-                    f"XRPL worker synchronization failed: {exc}",
-                    file=sys.stderr,
+            except Exception:
+                LOGGER.exception(
+                    "event=xrpl_sync_failed",
                 )
 
             if worker_stop_event.wait(poll_interval):
                 break
     except KeyboardInterrupt:
+        LOGGER.info(
+            "event=xrpl_polling_keyboard_interrupt",
+        )
         worker_stop_event.set()
     finally:
         signal.signal(
@@ -226,10 +261,14 @@ def run_testnet_polling(
             previous_sigterm_handler,
         )
 
-        print("XRPL worker polling stopped")
+        LOGGER.info(
+            "event=xrpl_polling_stopped",
+        )
 
 
 def main() -> None:
+    configure_logging()
+
     args = parse_args()
     poll_interval = getattr(args, "poll_interval", None)
 
@@ -250,7 +289,7 @@ def main() -> None:
         transactions = load_transactions_from_fixture(args.fixtures)
 
     result = run_once(transactions)
-    print_scan_result(result)
+    log_scan_result(result)
 
 
 if __name__ == "__main__":
