@@ -125,9 +125,23 @@ def test_metrics_endpoint() -> None:
     app.dependency_overrides[get_db] = override_get_db
 
     try:
-        with patch(
-            "app.api.routes.metrics.generate_xrpl_worker_metrics",
-            return_value=b"# HELP example_metric Example\nexample_metric 1\n",
+        with (
+            patch(
+                "app.api.routes.metrics.generate_xrpl_worker_metrics",
+                return_value=(
+                    b"# HELP euroledger_xrpl_example XRPL example\n"
+                    b"# TYPE euroledger_xrpl_example gauge\n"
+                    b"euroledger_xrpl_example 1\n"
+                ),
+            ) as generate_xrpl_metrics,
+            patch(
+                ("app.api.routes.metrics.generate_payment_intent_expiration_metrics"),
+                return_value=(
+                    b"# HELP euroledger_expirer_example Expirer example\n"
+                    b"# TYPE euroledger_expirer_example gauge\n"
+                    b"euroledger_expirer_example 1\n"
+                ),
+            ) as generate_expiration_metrics,
         ):
             client = TestClient(app)
             response = client.get("/metrics")
@@ -135,5 +149,24 @@ def test_metrics_endpoint() -> None:
         app.dependency_overrides.clear()
 
     assert response.status_code == 200
-    assert response.text == ("# HELP example_metric Example\nexample_metric 1\n")
+
+    assert response.text == (
+        "# HELP euroledger_xrpl_example XRPL example\n"
+        "# TYPE euroledger_xrpl_example gauge\n"
+        "euroledger_xrpl_example 1\n"
+        "# HELP euroledger_expirer_example Expirer example\n"
+        "# TYPE euroledger_expirer_example gauge\n"
+        "euroledger_expirer_example 1\n"
+    )
+
     assert response.headers["content-type"].startswith("text/plain")
+
+    generate_xrpl_metrics.assert_called_once_with(
+        db=db,
+        stale_after_seconds=120,
+    )
+
+    generate_expiration_metrics.assert_called_once_with(
+        db=db,
+        stale_after_seconds=180,
+    )
