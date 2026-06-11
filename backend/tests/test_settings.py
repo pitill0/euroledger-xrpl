@@ -44,3 +44,11 @@ def test_empty_xrpl_addresses_are_normalized_to_none() -> None:
 
     assert settings.xrpl_merchant_address is None
     assert settings.xrpl_issuer_address is None
+
+
+def test_worker_stale_threshold_has_safe_default() -> None:
+    settings = Settings(
+        _env_file=None,
+    )
+
+    assert settings.xrpl_worker_stale_after_seconds == 120

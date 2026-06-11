@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     xrpl_issuer_address: str | None = None
     xrpl_currency_code: str = "EUR"
 
+    xrpl_worker_stale_after_seconds: int = 120
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
