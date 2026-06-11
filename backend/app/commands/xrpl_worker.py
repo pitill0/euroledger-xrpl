@@ -1,6 +1,11 @@
 import argparse
 import json
+import signal
+import sys
+from collections.abc import Callable
 from pathlib import Path
+from threading import Event
+from types import FrameType
 from typing import Any
 
 from app.core.config import get_settings
@@ -10,6 +15,8 @@ from app.workers.xrpl_sync import synchronize_xrpl_account_transactions
 from app.xrpl.account_transactions import fetch_account_transactions
 from app.xrpl.client import build_xrpl_client
 from app.xrpl.settings import build_xrpl_settings
+
+SignalHandler = Callable[[int, FrameType | None], None]
 
 
 def build_sample_transactions() -> list[dict[str, Any]]:
@@ -50,9 +57,20 @@ def fetch_testnet_transactions(
     )
 
 
+def positive_poll_interval(value: str) -> float:
+    interval = float(value)
+
+    if interval <= 0:
+        raise argparse.ArgumentTypeError(
+            "poll interval must be greater than zero",
+        )
+
+    return interval
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run the XRPL payment worker once.",
+        description="Run the XRPL payment worker.",
     )
 
     source_group = parser.add_mutually_exclusive_group()
@@ -74,10 +92,23 @@ def parse_args() -> argparse.Namespace:
         "--limit",
         type=int,
         default=20,
-        help="Maximum number of transactions to fetch in testnet mode.",
+        help="Maximum number of transactions to fetch per Testnet request.",
     )
 
-    return parser.parse_args()
+    parser.add_argument(
+        "--poll-interval",
+        type=positive_poll_interval,
+        default=None,
+        metavar="SECONDS",
+        help="Repeat Testnet synchronization every SECONDS instead of running once.",
+    )
+
+    args = parser.parse_args()
+
+    if args.poll_interval is not None and not args.testnet:
+        parser.error("--poll-interval requires --testnet")
+
+    return args
 
 
 def run_once(
@@ -140,10 +171,76 @@ def run_testnet_once(
             print(f"- {error}")
 
 
+def build_stop_handler(stop_event: Event) -> SignalHandler:
+    def handle_stop_signal(
+        signum: int,
+        frame: FrameType | None,
+    ) -> None:
+        del signum, frame
+        stop_event.set()
+
+    return handle_stop_signal
+
+
+def run_testnet_polling(
+    *,
+    limit: int,
+    poll_interval: float,
+    stop_event: Event | None = None,
+) -> None:
+    worker_stop_event = stop_event or Event()
+    stop_handler = build_stop_handler(worker_stop_event)
+
+    previous_sigint_handler = signal.signal(
+        signal.SIGINT,
+        stop_handler,
+    )
+    previous_sigterm_handler = signal.signal(
+        signal.SIGTERM,
+        stop_handler,
+    )
+
+    print(f"XRPL worker polling started interval={poll_interval:g}s")
+
+    try:
+        while not worker_stop_event.is_set():
+            try:
+                run_testnet_once(limit=limit)
+            except Exception as exc:
+                print(
+                    f"XRPL worker synchronization failed: {exc}",
+                    file=sys.stderr,
+                )
+
+            if worker_stop_event.wait(poll_interval):
+                break
+    except KeyboardInterrupt:
+        worker_stop_event.set()
+    finally:
+        signal.signal(
+            signal.SIGINT,
+            previous_sigint_handler,
+        )
+        signal.signal(
+            signal.SIGTERM,
+            previous_sigterm_handler,
+        )
+
+        print("XRPL worker polling stopped")
+
+
 def main() -> None:
     args = parse_args()
+    poll_interval = getattr(args, "poll_interval", None)
 
     if args.testnet:
+        if poll_interval is not None:
+            run_testnet_polling(
+                limit=args.limit,
+                poll_interval=poll_interval,
+            )
+            return
+
         run_testnet_once(limit=args.limit)
         return
 
