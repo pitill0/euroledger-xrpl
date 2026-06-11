@@ -8,6 +8,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     app_env: str = "local"
 
+    payment_intent_expirer_stale_after_seconds: int = 180
+
     postgres_user: str = "euroledger"
     postgres_password: str = "euroledger"
     postgres_db: str = "euroledger"

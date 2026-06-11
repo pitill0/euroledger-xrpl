@@ -6,6 +6,12 @@ from threading import Event
 from types import FrameType
 
 from app.db.session import SessionLocal
+from app.repositories.payment_intent_expirer_states import (
+    get_or_create_payment_intent_expirer_state,
+    mark_payment_intent_expiration_cycle_failed,
+    mark_payment_intent_expiration_cycle_started,
+    mark_payment_intent_expiration_cycle_succeeded,
+)
 from app.services.payment_intents import (
     PaymentIntentExpirationResult,
     expire_pending_payment_intents,
@@ -74,10 +80,38 @@ def run_once(
     limit: int,
 ) -> PaymentIntentExpirationResult:
     with SessionLocal() as db:
-        return expire_pending_payment_intents(
+        state = get_or_create_payment_intent_expirer_state(db)
+
+        mark_payment_intent_expiration_cycle_started(
             db=db,
-            limit=limit,
+            state=state,
         )
+
+        try:
+            result = expire_pending_payment_intents(
+                db=db,
+                limit=limit,
+            )
+        except Exception as exc:
+            db.rollback()
+
+            state = get_or_create_payment_intent_expirer_state(db)
+
+            mark_payment_intent_expiration_cycle_failed(
+                db=db,
+                state=state,
+                error=str(exc),
+            )
+
+            raise
+
+        mark_payment_intent_expiration_cycle_succeeded(
+            db=db,
+            state=state,
+            expired=result.expired,
+        )
+
+        return result
 
 
 def log_result(

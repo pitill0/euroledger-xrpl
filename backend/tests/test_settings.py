@@ -52,3 +52,11 @@ def test_worker_stale_threshold_has_safe_default() -> None:
     )
 
     assert settings.xrpl_worker_stale_after_seconds == 120
+
+
+def test_payment_intent_expirer_stale_threshold_default() -> None:
+    settings = Settings(
+        _env_file=None,
+    )
+
+    assert settings.payment_intent_expirer_stale_after_seconds == 180

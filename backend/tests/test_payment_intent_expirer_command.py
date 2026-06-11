@@ -18,6 +18,7 @@ from app.services.payment_intents import (
 
 def test_run_once_expires_payment_intents() -> None:
     db = Mock()
+    state = Mock()
 
     expected_result = PaymentIntentExpirationResult(
         expired=3,
@@ -29,9 +30,19 @@ def test_run_once_expires_payment_intents() -> None:
             "app.commands.payment_intent_expirer.SessionLocal",
         ) as session_local,
         patch(
+            ("app.commands.payment_intent_expirer.get_or_create_payment_intent_expirer_state"),
+            return_value=state,
+        ) as get_state,
+        patch(
+            ("app.commands.payment_intent_expirer.mark_payment_intent_expiration_cycle_started"),
+        ) as mark_started,
+        patch(
             ("app.commands.payment_intent_expirer.expire_pending_payment_intents"),
             return_value=expected_result,
         ) as expire_payment_intents,
+        patch(
+            ("app.commands.payment_intent_expirer.mark_payment_intent_expiration_cycle_succeeded"),
+        ) as mark_succeeded,
     ):
         session_local.return_value.__enter__.return_value = db
 
@@ -39,9 +50,22 @@ def test_run_once_expires_payment_intents() -> None:
             limit=100,
         )
 
+    get_state.assert_called_once_with(db)
+
+    mark_started.assert_called_once_with(
+        db=db,
+        state=state,
+    )
+
     expire_payment_intents.assert_called_once_with(
         db=db,
         limit=100,
+    )
+
+    mark_succeeded.assert_called_once_with(
+        db=db,
+        state=state,
+        expired=3,
     )
 
     assert result == expected_result
@@ -226,3 +250,89 @@ def test_polling_continues_after_cycle_error(
 
     assert run_expiration.call_count == 2
     assert "event=payment_intent_expiration_failed" in caplog.messages
+
+
+def test_run_once_persists_successful_cycle() -> None:
+    db = Mock()
+    state = Mock()
+
+    result = PaymentIntentExpirationResult(
+        expired=3,
+        limit=100,
+    )
+
+    with (
+        patch(
+            "app.commands.payment_intent_expirer.SessionLocal",
+        ) as session_local,
+        patch(
+            ("app.commands.payment_intent_expirer.get_or_create_payment_intent_expirer_state"),
+            return_value=state,
+        ),
+        patch(
+            ("app.commands.payment_intent_expirer.mark_payment_intent_expiration_cycle_started"),
+        ) as mark_started,
+        patch(
+            ("app.commands.payment_intent_expirer.expire_pending_payment_intents"),
+            return_value=result,
+        ),
+        patch(
+            ("app.commands.payment_intent_expirer.mark_payment_intent_expiration_cycle_succeeded"),
+        ) as mark_succeeded,
+    ):
+        session_local.return_value.__enter__.return_value = db
+
+        returned_result = run_once(limit=100)
+
+    mark_started.assert_called_once_with(
+        db=db,
+        state=state,
+    )
+
+    mark_succeeded.assert_called_once_with(
+        db=db,
+        state=state,
+        expired=3,
+    )
+
+    assert returned_result == result
+
+
+def test_run_once_persists_failed_cycle() -> None:
+    db = Mock()
+    state = Mock()
+
+    with (
+        patch(
+            "app.commands.payment_intent_expirer.SessionLocal",
+        ) as session_local,
+        patch(
+            ("app.commands.payment_intent_expirer.get_or_create_payment_intent_expirer_state"),
+            return_value=state,
+        ),
+        patch(
+            ("app.commands.payment_intent_expirer.mark_payment_intent_expiration_cycle_started"),
+        ),
+        patch(
+            ("app.commands.payment_intent_expirer.expire_pending_payment_intents"),
+            side_effect=RuntimeError("database unavailable"),
+        ),
+        patch(
+            ("app.commands.payment_intent_expirer.mark_payment_intent_expiration_cycle_failed"),
+        ) as mark_failed,
+        pytest.raises(
+            RuntimeError,
+            match="database unavailable",
+        ),
+    ):
+        session_local.return_value.__enter__.return_value = db
+
+        run_once(limit=100)
+
+    db.rollback.assert_called_once_with()
+
+    mark_failed.assert_called_once_with(
+        db=db,
+        state=state,
+        error="database unavailable",
+    )
