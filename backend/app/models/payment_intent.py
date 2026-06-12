@@ -46,7 +46,10 @@ class PaymentIntent(Base):
     )
 
     status: Mapped[PaymentIntentStatus] = mapped_column(
-        Enum(PaymentIntentStatus, name="payment_intent_status"),
+        Enum(
+            PaymentIntentStatus,
+            name="payment_intent_status",
+        ),
         nullable=False,
         default=PaymentIntentStatus.pending,
     )
@@ -70,6 +73,18 @@ class PaymentIntent(Base):
         DateTime(timezone=True),
         nullable=False,
         index=True,
+    )
+
+    idempotency_key: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+
+    idempotency_fingerprint: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(

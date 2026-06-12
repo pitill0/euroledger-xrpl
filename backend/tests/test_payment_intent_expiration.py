@@ -46,15 +46,20 @@ def test_create_payment_intent_sets_default_expiration() -> None:
         "app.services.payment_intents.generate_payment_reference",
         return_value="EL-TESTREFERENCE",
     ):
-        payment_intent = create_payment_intent(
+        result = create_payment_intent(
             db=db,
             payload=payload,
             now=NOW,
         )
 
+    payment_intent = result.payment_intent
+
+    assert result.created is True
     assert payment_intent.expires_at == NOW + timedelta(
         seconds=900,
     )
+    assert payment_intent.idempotency_key is None
+    assert payment_intent.idempotency_fingerprint is None
 
     db.add.assert_called_once_with(payment_intent)
     db.commit.assert_called_once_with()
@@ -73,15 +78,20 @@ def test_create_payment_intent_accepts_custom_expiration() -> None:
         "app.services.payment_intents.generate_payment_reference",
         return_value="EL-TESTREFERENCE",
     ):
-        payment_intent = create_payment_intent(
+        result = create_payment_intent(
             db=db,
             payload=payload,
             now=NOW,
         )
 
+    payment_intent = result.payment_intent
+
+    assert result.created is True
     assert payment_intent.expires_at == NOW + timedelta(
         seconds=1800,
     )
+    assert payment_intent.idempotency_key is None
+    assert payment_intent.idempotency_fingerprint is None
 
 
 def test_expire_pending_payment_intents() -> None:
@@ -128,4 +138,6 @@ def test_expiration_cycle_with_no_matches() -> None:
         )
 
     assert result.expired == 0
+    assert result.limit == 100
+
     db.commit.assert_called_once_with()

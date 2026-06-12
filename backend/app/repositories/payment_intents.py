@@ -3,14 +3,20 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.payment_intent import PaymentIntent, PaymentIntentStatus
+from app.models.payment_intent import (
+    PaymentIntent,
+    PaymentIntentStatus,
+)
 
 
 def get_payment_intent_by_id(
     db: Session,
     payment_intent_id: str,
 ) -> PaymentIntent | None:
-    return db.get(PaymentIntent, payment_intent_id)
+    return db.get(
+        PaymentIntent,
+        payment_intent_id,
+    )
 
 
 def get_payment_intent_by_reference(
@@ -21,7 +27,22 @@ def get_payment_intent_by_reference(
         PaymentIntent.reference == reference,
     )
 
-    return db.execute(statement).scalar_one_or_none()
+    return db.execute(
+        statement,
+    ).scalar_one_or_none()
+
+
+def get_payment_intent_by_idempotency_key(
+    db: Session,
+    idempotency_key: str,
+) -> PaymentIntent | None:
+    statement = select(PaymentIntent).where(
+        PaymentIntent.idempotency_key == idempotency_key,
+    )
+
+    return db.execute(
+        statement,
+    ).scalar_one_or_none()
 
 
 def get_expired_pending_payment_intents(
