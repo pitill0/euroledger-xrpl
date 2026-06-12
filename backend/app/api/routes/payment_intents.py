@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import (
@@ -5,6 +6,7 @@ from fastapi import (
     Depends,
     Header,
     HTTPException,
+    Query,
     Response,
     status,
 )
@@ -12,6 +14,8 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.domain.exceptions import (
+    InvalidPaymentIntentCursorError,
+    InvalidPaymentIntentListFilterError,
     InvalidPaymentIntentStatusTransitionError,
     PaymentIntentCancellationConflictError,
     PaymentValidationError,
@@ -19,15 +23,22 @@ from app.domain.exceptions import (
 from app.domain.idempotency import (
     IdempotencyConflictError,
 )
+from app.models.payment_intent import (
+    PaymentIntentStatus,
+)
 from app.schemas.payment_intent import (
     PaymentIntentCancel,
     PaymentIntentConfirm,
     PaymentIntentCreate,
     PaymentIntentDetectedPayment,
+    PaymentIntentListResponse,
     PaymentIntentRead,
 )
 from app.services.payment_intent_api_metrics import (
     record_payment_intent_creation,
+)
+from app.services.payment_intent_listing import (
+    list_payment_intents,
 )
 from app.services.payment_intents import (
     cancel_payment_intent,
@@ -54,6 +65,44 @@ IdempotencyKey = Annotated[
         alias="Idempotency-Key",
         min_length=1,
         max_length=255,
+    ),
+]
+
+StatusFilter = Annotated[
+    PaymentIntentStatus | None,
+    Query(),
+]
+
+ReferenceFilter = Annotated[
+    str | None,
+    Query(
+        min_length=4,
+        max_length=64,
+    ),
+]
+
+CreatedFromFilter = Annotated[
+    datetime | None,
+    Query(),
+]
+
+CreatedToFilter = Annotated[
+    datetime | None,
+    Query(),
+]
+
+CursorFilter = Annotated[
+    str | None,
+    Query(
+        min_length=1,
+    ),
+]
+
+LimitFilter = Annotated[
+    int,
+    Query(
+        ge=1,
+        le=100,
     ),
 ]
 
@@ -113,6 +162,44 @@ def create_payment_intent_endpoint(
         )
 
     return result.payment_intent
+
+
+@router.get(
+    "",
+    response_model=PaymentIntentListResponse,
+)
+def list_payment_intents_endpoint(
+    db: DbSession,
+    status_filter: StatusFilter = None,
+    reference: ReferenceFilter = None,
+    created_from: CreatedFromFilter = None,
+    created_to: CreatedToFilter = None,
+    cursor: CursorFilter = None,
+    limit: LimitFilter = 20,
+) -> PaymentIntentListResponse:
+    try:
+        result = list_payment_intents(
+            db=db,
+            status=status_filter,
+            reference=reference,
+            created_from=created_from,
+            created_to=created_to,
+            cursor=cursor,
+            limit=limit,
+        )
+    except (
+        InvalidPaymentIntentCursorError,
+        InvalidPaymentIntentListFilterError,
+    ) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+
+    return PaymentIntentListResponse(
+        items=[PaymentIntentRead.model_validate(item) for item in result.items],
+        next_cursor=result.next_cursor,
+    )
 
 
 @router.post(
@@ -208,7 +295,7 @@ def confirm_payment_intent_endpoint(
         return confirm_payment_intent(
             db=db,
             payment_intent=payment_intent,
-            xrpl_transaction_hash=payload.xrpl_transaction_hash,
+            xrpl_transaction_hash=(payload.xrpl_transaction_hash),
         )
     except InvalidPaymentIntentStatusTransitionError as exc:
         raise HTTPException(

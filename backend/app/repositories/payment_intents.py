@@ -1,8 +1,11 @@
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
+from app.domain.payment_intent_pagination import (
+    PaymentIntentCursor,
+)
 from app.models.payment_intent import (
     PaymentIntent,
     PaymentIntentStatus,
@@ -43,6 +46,63 @@ def get_payment_intent_by_idempotency_key(
     return db.execute(
         statement,
     ).scalar_one_or_none()
+
+
+def list_payment_intents(
+    db: Session,
+    *,
+    status: PaymentIntentStatus | None,
+    reference: str | None,
+    created_from: datetime | None,
+    created_to: datetime | None,
+    cursor: PaymentIntentCursor | None,
+    limit: int,
+) -> tuple[list[PaymentIntent], bool]:
+    statement = select(PaymentIntent)
+
+    if status is not None:
+        statement = statement.where(
+            PaymentIntent.status == status,
+        )
+
+    if reference is not None:
+        statement = statement.where(
+            PaymentIntent.reference == reference.upper(),
+        )
+
+    if created_from is not None:
+        statement = statement.where(
+            PaymentIntent.created_at >= created_from,
+        )
+
+    if created_to is not None:
+        statement = statement.where(
+            PaymentIntent.created_at <= created_to,
+        )
+
+    if cursor is not None:
+        statement = statement.where(
+            or_(
+                PaymentIntent.created_at < cursor.created_at,
+                and_(
+                    PaymentIntent.created_at == cursor.created_at,
+                    PaymentIntent.id < cursor.payment_intent_id,
+                ),
+            ),
+        )
+
+    statement = statement.order_by(
+        PaymentIntent.created_at.desc(),
+        PaymentIntent.id.desc(),
+    ).limit(limit + 1)
+
+    results = list(
+        db.execute(statement).scalars().all(),
+    )
+
+    has_more = len(results) > limit
+
+    return results[:limit], has_more
 
 
 def get_expired_pending_payment_intents(

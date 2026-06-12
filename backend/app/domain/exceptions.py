@@ -10,5 +10,13 @@ class PaymentIntentCancellationConflictError(DomainError):
     """Raised when a cancellation replay uses a different reason."""
 
 
+class InvalidPaymentIntentCursorError(DomainError):
+    """Raised when a payment intent pagination cursor is invalid."""
+
+
+class InvalidPaymentIntentListFilterError(DomainError):
+    """Raised when payment intent list filters are inconsistent."""
+
+
 class PaymentValidationError(DomainError):
     """Raised when a detected payment does not match a payment intent."""

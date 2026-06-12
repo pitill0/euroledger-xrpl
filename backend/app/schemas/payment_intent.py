@@ -7,10 +7,24 @@ from app.models.payment_intent import PaymentIntentStatus
 
 
 class PaymentIntentCreate(BaseModel):
-    amount: Decimal = Field(..., gt=0, decimal_places=2)
-    currency: str = Field(default="EUR", min_length=3, max_length=12)
-    description: str | None = Field(default=None, max_length=255)
-    expected_destination: str | None = Field(default=None, max_length=128)
+    amount: Decimal = Field(
+        ...,
+        gt=0,
+        decimal_places=2,
+    )
+    currency: str = Field(
+        default="EUR",
+        min_length=3,
+        max_length=12,
+    )
+    description: str | None = Field(
+        default=None,
+        max_length=255,
+    )
+    expected_destination: str | None = Field(
+        default=None,
+        max_length=128,
+    )
     expires_in_seconds: int = Field(
         default=900,
         ge=60,
@@ -35,16 +49,34 @@ class PaymentIntentCancel(BaseModel):
 
 
 class PaymentIntentDetectedPayment(BaseModel):
-    reference: str = Field(..., min_length=4, max_length=64)
-    amount: Decimal = Field(..., gt=0, decimal_places=2)
-    currency: str = Field(default="EUR", min_length=3, max_length=12)
+    reference: str = Field(
+        ...,
+        min_length=4,
+        max_length=64,
+    )
+    amount: Decimal = Field(
+        ...,
+        gt=0,
+        decimal_places=2,
+    )
+    currency: str = Field(
+        default="EUR",
+        min_length=3,
+        max_length=12,
+    )
     xrpl_transaction_hash: str = Field(
         ...,
         min_length=64,
         max_length=128,
     )
-    destination: str | None = Field(default=None, max_length=128)
-    issuer: str | None = Field(default=None, max_length=128)
+    destination: str | None = Field(
+        default=None,
+        max_length=128,
+    )
+    issuer: str | None = Field(
+        default=None,
+        max_length=128,
+    )
 
 
 class PaymentIntentRead(BaseModel):
@@ -65,3 +97,8 @@ class PaymentIntentRead(BaseModel):
     model_config = {
         "from_attributes": True,
     }
+
+
+class PaymentIntentListResponse(BaseModel):
+    items: list[PaymentIntentRead]
+    next_cursor: str | None
