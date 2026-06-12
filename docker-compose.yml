@@ -150,8 +150,26 @@ services:
       - alertmanager
     restart: unless-stopped
 
+  n8n:
+    #image: docker.n8n.io/n8nio/n8n:2.25.7
+    image: n8nio/n8n:2.25.7
+    container_name: euroledger-xrpl-n8n
+    environment:
+      N8N_HOST: ${N8N_HOST:-localhost}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: ${N8N_PROTOCOL:-http}
+      N8N_SECURE_COOKIE: ${N8N_SECURE_COOKIE:-false}
+      GENERIC_TIMEZONE: ${GENERIC_TIMEZONE:-Europe/Madrid}
+      TZ: ${GENERIC_TIMEZONE:-Europe/Madrid}
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   prometheus_data:
   grafana_data:
   alertmanager_data:
+  n8n_data:
