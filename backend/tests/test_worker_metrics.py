@@ -142,6 +142,14 @@ def test_metrics_endpoint() -> None:
                     b"euroledger_expirer_example 1\n"
                 ),
             ) as generate_expiration_metrics,
+            patch(
+                ("app.api.routes.metrics.generate_payment_intent_api_metrics"),
+                return_value=(
+                    b"# HELP euroledger_api_example API example\n"
+                    b"# TYPE euroledger_api_example counter\n"
+                    b"euroledger_api_example_total 1\n"
+                ),
+            ) as generate_api_metrics,
         ):
             client = TestClient(app)
             response = client.get("/metrics")
@@ -157,6 +165,9 @@ def test_metrics_endpoint() -> None:
         "# HELP euroledger_expirer_example Expirer example\n"
         "# TYPE euroledger_expirer_example gauge\n"
         "euroledger_expirer_example 1\n"
+        "# HELP euroledger_api_example API example\n"
+        "# TYPE euroledger_api_example counter\n"
+        "euroledger_api_example_total 1\n"
     )
 
     assert response.headers["content-type"].startswith("text/plain")
@@ -170,3 +181,5 @@ def test_metrics_endpoint() -> None:
         db=db,
         stale_after_seconds=180,
     )
+
+    generate_api_metrics.assert_called_once_with()

@@ -6,14 +6,22 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.db.session import get_db
+from app.services.payment_intent_api_metrics import (
+    generate_payment_intent_api_metrics,
+)
 from app.services.payment_intent_expiration_metrics import (
     generate_payment_intent_expiration_metrics,
 )
-from app.services.worker_metrics import generate_xrpl_worker_metrics
+from app.services.worker_metrics import (
+    generate_xrpl_worker_metrics,
+)
 
 router = APIRouter(tags=["metrics"])
 
-DbSession = Annotated[Session, Depends(get_db)]
+DbSession = Annotated[
+    Session,
+    Depends(get_db),
+]
 
 
 @router.get(
@@ -27,7 +35,7 @@ def metrics_endpoint(
 
     xrpl_metrics = generate_xrpl_worker_metrics(
         db=db,
-        stale_after_seconds=settings.xrpl_worker_stale_after_seconds,
+        stale_after_seconds=(settings.xrpl_worker_stale_after_seconds),
     )
 
     expiration_metrics = generate_payment_intent_expiration_metrics(
@@ -35,7 +43,9 @@ def metrics_endpoint(
         stale_after_seconds=(settings.payment_intent_expirer_stale_after_seconds),
     )
 
+    payment_intent_api_metrics = generate_payment_intent_api_metrics()
+
     return Response(
-        content=xrpl_metrics + expiration_metrics,
+        content=(xrpl_metrics + expiration_metrics + payment_intent_api_metrics),
         media_type=CONTENT_TYPE_LATEST,
     )

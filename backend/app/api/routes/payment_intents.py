@@ -24,6 +24,9 @@ from app.schemas.payment_intent import (
     PaymentIntentDetectedPayment,
     PaymentIntentRead,
 )
+from app.services.payment_intent_api_metrics import (
+    record_payment_intent_creation,
+)
 from app.services.payment_intents import (
     confirm_payment_intent,
     create_payment_intent,
@@ -71,6 +74,8 @@ def create_payment_intent_endpoint(
     response: Response,
     idempotency_key: IdempotencyKey = None,
 ) -> PaymentIntentRead:
+    is_idempotent = idempotency_key is not None
+
     try:
         result = create_payment_intent(
             db=db,
@@ -78,13 +83,31 @@ def create_payment_intent_endpoint(
             idempotency_key=idempotency_key,
         )
     except IdempotencyConflictError as exc:
+        record_payment_intent_creation(
+            result="conflict",
+            status_code=status.HTTP_409_CONFLICT,
+            idempotent=is_idempotent,
+        )
+
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(exc),
         ) from exc
 
-    if not result.created:
+    if result.created:
+        record_payment_intent_creation(
+            result="created",
+            status_code=status.HTTP_201_CREATED,
+            idempotent=is_idempotent,
+        )
+    else:
         response.status_code = status.HTTP_200_OK
+
+        record_payment_intent_creation(
+            result="replayed",
+            status_code=status.HTTP_200_OK,
+            idempotent=True,
+        )
 
     return result.payment_intent
 
