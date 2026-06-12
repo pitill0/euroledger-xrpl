@@ -34,6 +34,7 @@ def build_payment_intent(
 ) -> PaymentIntent:
     return PaymentIntent(
         id=payment_intent_id,
+        merchant_id="merchant-id",
         reference=f"EL-{payment_intent_id}",
         amount="25.00",
         currency="EUR",
@@ -66,6 +67,7 @@ def test_list_returns_items_without_cursor() -> None:
     ) as repository:
         result = list_payment_intents(
             db=db,
+            merchant_id="merchant-id",
             status=PaymentIntentStatus.pending,
             reference=None,
             created_from=None,
@@ -79,6 +81,7 @@ def test_list_returns_items_without_cursor() -> None:
 
     repository.assert_called_once_with(
         db=db,
+        merchant_id="merchant-id",
         status=PaymentIntentStatus.pending,
         reference=None,
         created_from=None,
@@ -108,6 +111,7 @@ def test_list_returns_next_cursor() -> None:
     ):
         result = list_payment_intents(
             db=db,
+            merchant_id="merchant-id",
             status=None,
             reference=None,
             created_from=None,
@@ -135,6 +139,7 @@ def test_created_from_after_created_to_fails() -> None:
     ):
         list_payment_intents(
             db=db,
+            merchant_id="merchant-id",
             status=None,
             reference=None,
             created_from=NOW,

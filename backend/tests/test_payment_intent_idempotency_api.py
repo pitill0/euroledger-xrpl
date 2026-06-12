@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 
 from fastapi.testclient import TestClient
 
+from app.api.dependencies.auth import get_current_merchant
 from app.db.session import get_db
 from app.domain.idempotency import (
     IdempotencyConflictError,
@@ -29,6 +30,7 @@ NOW = datetime(
 def build_payment_intent() -> PaymentIntent:
     return PaymentIntent(
         id="intent-id",
+        merchant_id="merchant-id",
         reference="EL-TESTREFERENCE",
         amount="25.00",
         currency="EUR",
@@ -48,8 +50,13 @@ def override_get_db():
     yield Mock()
 
 
+def override_current_merchant():
+    return Mock(id="merchant-id")
+
+
 def test_first_idempotent_request_returns_201() -> None:
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_merchant] = override_current_merchant
 
     result = PaymentIntentCreationResult(
         payment_intent=build_payment_intent(),
@@ -95,6 +102,7 @@ def test_first_idempotent_request_returns_201() -> None:
 
 def test_idempotent_replay_returns_200() -> None:
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_merchant] = override_current_merchant
 
     result = PaymentIntentCreationResult(
         payment_intent=build_payment_intent(),
@@ -140,6 +148,7 @@ def test_idempotent_replay_returns_200() -> None:
 
 def test_idempotency_conflict_returns_409() -> None:
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_merchant] = override_current_merchant
 
     try:
         with (
@@ -180,6 +189,7 @@ def test_idempotency_conflict_returns_409() -> None:
 
 def test_creation_without_idempotency_key_remains_supported() -> None:
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_merchant] = override_current_merchant
 
     result = PaymentIntentCreationResult(
         payment_intent=build_payment_intent(),

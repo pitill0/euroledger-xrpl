@@ -37,6 +37,7 @@ def build_payment_intent(
 ) -> PaymentIntent:
     return PaymentIntent(
         id=payment_intent_id,
+        merchant_id="merchant-id",
         reference=f"EL-{payment_intent_id.upper()}",
         amount=Decimal("25.00"),
         currency="EUR",
@@ -99,6 +100,7 @@ def test_stream_exports_header_and_rows() -> None:
         chunks = list(
             stream_payment_intents_csv(
                 db=db,
+                merchant_id="merchant-id",
                 status=None,
                 reference=None,
                 created_from=None,
@@ -113,15 +115,18 @@ def test_stream_exports_header_and_rows() -> None:
     assert len(rows) == 3
 
     assert rows[1][0] == "intent-2"
-    assert rows[1][1] == "EL-INTENT-2"
-    assert rows[1][2] == "25.00"
-    assert rows[1][4] == "pending"
+    assert rows[1][1] == "merchant-id"
+    assert rows[1][2] == "EL-INTENT-2"
+    assert rows[1][3] == "25.00"
+    assert rows[1][5] == "pending"
 
     assert rows[2][0] == "intent-1"
-    assert rows[2][4] == "confirmed"
+    assert rows[2][1] == "merchant-id"
+    assert rows[2][5] == "confirmed"
 
     repository.assert_called_once_with(
         db=db,
+        merchant_id="merchant-id",
         status=None,
         reference=None,
         created_from=None,
@@ -154,6 +159,7 @@ def test_stream_paginates_internally() -> None:
         chunks = list(
             stream_payment_intents_csv(
                 db=db,
+                merchant_id="merchant-id",
                 status=PaymentIntentStatus.pending,
                 reference=None,
                 created_from=None,
@@ -192,6 +198,7 @@ def test_stream_respects_max_rows() -> None:
         chunks = list(
             stream_payment_intents_csv(
                 db=db,
+                merchant_id="merchant-id",
                 status=None,
                 reference=None,
                 created_from=None,
@@ -206,6 +213,7 @@ def test_stream_respects_max_rows() -> None:
 
     repository.assert_called_once_with(
         db=db,
+        merchant_id="merchant-id",
         status=None,
         reference=None,
         created_from=None,
@@ -225,6 +233,7 @@ def test_empty_export_contains_only_header() -> None:
         chunks = list(
             stream_payment_intents_csv(
                 db=db,
+                merchant_id="merchant-id",
                 status=None,
                 reference=None,
                 created_from=None,

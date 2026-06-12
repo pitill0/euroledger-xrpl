@@ -27,6 +27,7 @@ def build_payment_intent(
     expires_at: datetime | None = None,
 ) -> PaymentIntent:
     return PaymentIntent(
+        merchant_id="merchant-id",
         reference="EL-TESTREFERENCE",
         amount="25.00",
         currency="EUR",
@@ -49,6 +50,7 @@ def test_create_payment_intent_sets_default_expiration() -> None:
         result = create_payment_intent(
             db=db,
             payload=payload,
+            merchant_id="merchant-id",
             now=NOW,
         )
 
@@ -81,6 +83,7 @@ def test_create_payment_intent_accepts_custom_expiration() -> None:
         result = create_payment_intent(
             db=db,
             payload=payload,
+            merchant_id="merchant-id",
             now=NOW,
         )
 

@@ -81,6 +81,7 @@ class PaymentIntentDetectedPayment(BaseModel):
 
 class PaymentIntentRead(BaseModel):
     id: str
+    merchant_id: str
     reference: str
     amount: Decimal
     currency: str

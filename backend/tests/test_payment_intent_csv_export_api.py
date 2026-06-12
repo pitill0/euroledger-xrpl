@@ -2,6 +2,7 @@ from unittest.mock import Mock, patch
 
 from fastapi.testclient import TestClient
 
+from app.api.dependencies.auth import get_current_merchant
 from app.db.session import get_db
 from app.domain.exceptions import (
     InvalidPaymentIntentListFilterError,
@@ -13,8 +14,13 @@ def override_get_db():
     yield Mock()
 
 
+def override_current_merchant():
+    return Mock(id="merchant-id")
+
+
 def test_export_payment_intents_returns_csv() -> None:
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_merchant] = override_current_merchant
 
     try:
         with (
@@ -66,6 +72,7 @@ def test_export_payment_intents_returns_csv() -> None:
 
 def test_export_invalid_date_interval_returns_422() -> None:
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_merchant] = override_current_merchant
 
     try:
         with patch(
@@ -92,18 +99,24 @@ def test_export_invalid_date_interval_returns_422() -> None:
 
 
 def test_export_rejects_max_rows_above_limit() -> None:
-    response = TestClient(app).get(
-        "/payment-intents/export",
-        params={
-            "max_rows": 10001,
-        },
-    )
+    app.dependency_overrides[get_current_merchant] = lambda: Mock(id="merchant-id")
+
+    try:
+        response = TestClient(app).get(
+            "/payment-intents/export",
+            params={
+                "max_rows": 10001,
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
 
     assert response.status_code == 422
 
 
 def test_export_route_is_not_interpreted_as_id() -> None:
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_merchant] = override_current_merchant
 
     try:
         with patch(

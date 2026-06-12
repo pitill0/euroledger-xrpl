@@ -24,6 +24,7 @@ CSV_BATCH_SIZE = 500
 
 CSV_COLUMNS = (
     "id",
+    "merchant_id",
     "reference",
     "amount",
     "currency",
@@ -103,6 +104,7 @@ def payment_intent_to_csv_row(
 ) -> tuple[str, ...]:
     return (
         payment_intent.id,
+        payment_intent.merchant_id,
         payment_intent.reference,
         serialize_decimal(payment_intent.amount),
         payment_intent.currency,
@@ -138,6 +140,7 @@ def render_csv_row(
 def stream_payment_intents_csv(
     db: Session,
     *,
+    merchant_id: str,
     status: PaymentIntentStatus | None,
     reference: str | None,
     created_from: datetime | None,
@@ -168,6 +171,7 @@ def stream_payment_intents_csv(
 
         items, has_more = list_payment_intents_repository(
             db=db,
+            merchant_id=merchant_id,
             status=status,
             reference=reference,
             created_from=normalized_created_from,

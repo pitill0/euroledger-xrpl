@@ -30,6 +30,7 @@ from app.repositories.payment_intents import (
     get_payment_intent_by_id,
     get_payment_intent_by_idempotency_key,
     get_payment_intent_by_reference,
+    get_payment_intent_by_reference_unscoped,
     save_payment_intent,
     update_payment_intent,
 )
@@ -77,10 +78,12 @@ def get_existing_idempotent_payment_intent(
     *,
     idempotency_key: str,
     fingerprint: str,
+    merchant_id: str,
 ) -> PaymentIntent | None:
     payment_intent = get_payment_intent_by_idempotency_key(
         db=db,
         idempotency_key=idempotency_key,
+        merchant_id=merchant_id,
     )
 
     if payment_intent is None:
@@ -98,6 +101,7 @@ def create_payment_intent(
     db: Session,
     payload: PaymentIntentCreate,
     *,
+    merchant_id: str,
     idempotency_key: str | None = None,
     now: datetime | None = None,
 ) -> PaymentIntentCreationResult:
@@ -112,6 +116,7 @@ def create_payment_intent(
             db=db,
             idempotency_key=idempotency_key,
             fingerprint=fingerprint,
+            merchant_id=merchant_id,
         )
 
         if existing_payment_intent is not None:
@@ -121,6 +126,7 @@ def create_payment_intent(
             )
 
     payment_intent = PaymentIntent(
+        merchant_id=merchant_id,
         reference=generate_payment_reference(),
         amount=Decimal(payload.amount),
         currency=payload.currency.upper(),
@@ -149,6 +155,7 @@ def create_payment_intent(
             db=db,
             idempotency_key=idempotency_key,
             fingerprint=fingerprint,
+            merchant_id=merchant_id,
         )
 
         if concurrent_payment_intent is None:
@@ -168,20 +175,26 @@ def create_payment_intent(
 def get_payment_intent(
     db: Session,
     payment_intent_id: str,
+    *,
+    merchant_id: str,
 ) -> PaymentIntent | None:
     return get_payment_intent_by_id(
         db,
         payment_intent_id,
+        merchant_id=merchant_id,
     )
 
 
 def get_payment_intent_by_payment_reference(
     db: Session,
     reference: str,
+    *,
+    merchant_id: str,
 ) -> PaymentIntent | None:
     return get_payment_intent_by_reference(
         db,
         reference.upper(),
+        merchant_id=merchant_id,
     )
 
 
@@ -283,9 +296,9 @@ def validate_and_confirm_detected_payment(
     db: Session,
     detected_payment: PaymentIntentDetectedPayment,
 ) -> PaymentIntent:
-    payment_intent = get_payment_intent_by_payment_reference(
-        db=db,
-        reference=detected_payment.reference,
+    payment_intent = get_payment_intent_by_reference_unscoped(
+        db,
+        detected_payment.reference.upper(),
     )
 
     if payment_intent is None:

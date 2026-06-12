@@ -12,6 +12,7 @@ XRPL_TRANSACTION_HASH = "A" * 64
 def test_confirm_pending_payment_intent() -> None:
     db = Mock()
     payment_intent = PaymentIntent(
+        merchant_id="merchant-id",
         reference="EL-TESTREFERENCE",
         amount="25.00",
         currency="EUR",
@@ -43,6 +44,7 @@ def test_cannot_confirm_non_pending_payment_intent(
 ) -> None:
     db = Mock()
     payment_intent = PaymentIntent(
+        merchant_id="merchant-id",
         reference="EL-TESTREFERENCE",
         amount="25.00",
         currency="EUR",

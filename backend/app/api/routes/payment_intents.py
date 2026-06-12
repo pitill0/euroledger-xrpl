@@ -13,6 +13,7 @@ from fastapi import (
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
+from app.api.dependencies.auth import CurrentMerchant
 from app.db.session import get_db
 from app.domain.exceptions import (
     InvalidPaymentIntentCursorError,
@@ -136,6 +137,7 @@ ExportMaxRows = Annotated[
 def create_payment_intent_endpoint(
     payload: PaymentIntentCreate,
     db: DbSession,
+    merchant: CurrentMerchant,
     response: Response,
     idempotency_key: IdempotencyKey = None,
 ) -> PaymentIntentRead:
@@ -145,6 +147,7 @@ def create_payment_intent_endpoint(
         result = create_payment_intent(
             db=db,
             payload=payload,
+            merchant_id=merchant.id,
             idempotency_key=idempotency_key,
         )
     except IdempotencyConflictError as exc:
@@ -183,6 +186,7 @@ def create_payment_intent_endpoint(
 )
 def list_payment_intents_endpoint(
     db: DbSession,
+    merchant: CurrentMerchant,
     status_filter: StatusFilter = None,
     reference: ReferenceFilter = None,
     created_from: CreatedFromFilter = None,
@@ -193,6 +197,7 @@ def list_payment_intents_endpoint(
     try:
         result = list_payment_intents(
             db=db,
+            merchant_id=merchant.id,
             status=status_filter,
             reference=reference,
             created_from=created_from,
@@ -232,6 +237,7 @@ def list_payment_intents_endpoint(
 )
 def export_payment_intents_endpoint(
     db: DbSession,
+    merchant: CurrentMerchant,
     status_filter: StatusFilter = None,
     reference: ReferenceFilter = None,
     created_from: CreatedFromFilter = None,
@@ -258,6 +264,7 @@ def export_payment_intents_endpoint(
     return StreamingResponse(
         stream_payment_intents_csv(
             db=db,
+            merchant_id=merchant.id,
             status=status_filter,
             reference=reference,
             created_from=created_from,
@@ -304,10 +311,12 @@ def validate_detected_payment_endpoint(
 def get_payment_intent_by_reference_endpoint(
     reference: str,
     db: DbSession,
+    merchant: CurrentMerchant,
 ) -> PaymentIntentRead:
     payment_intent = get_payment_intent_by_payment_reference(
         db,
         reference,
+        merchant_id=merchant.id,
     )
 
     if payment_intent is None:
@@ -326,10 +335,12 @@ def get_payment_intent_by_reference_endpoint(
 def get_payment_intent_endpoint(
     payment_intent_id: str,
     db: DbSession,
+    merchant: CurrentMerchant,
 ) -> PaymentIntentRead:
     payment_intent = get_payment_intent(
         db,
         payment_intent_id,
+        merchant_id=merchant.id,
     )
 
     if payment_intent is None:
@@ -349,10 +360,12 @@ def confirm_payment_intent_endpoint(
     payment_intent_id: str,
     payload: PaymentIntentConfirm,
     db: DbSession,
+    merchant: CurrentMerchant,
 ) -> PaymentIntentRead:
     payment_intent = get_payment_intent(
         db,
         payment_intent_id,
+        merchant_id=merchant.id,
     )
 
     if payment_intent is None:
@@ -389,10 +402,12 @@ def cancel_payment_intent_endpoint(
     payment_intent_id: str,
     payload: PaymentIntentCancel,
     db: DbSession,
+    merchant: CurrentMerchant,
 ) -> PaymentIntentRead:
     payment_intent = get_payment_intent(
         db,
         payment_intent_id,
+        merchant_id=merchant.id,
     )
 
     if payment_intent is None:

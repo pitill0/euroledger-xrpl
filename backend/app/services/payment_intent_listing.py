@@ -41,6 +41,7 @@ def ensure_utc(
 def list_payment_intents(
     db: Session,
     *,
+    merchant_id: str,
     status: PaymentIntentStatus | None,
     reference: str | None,
     created_from: datetime | None,
@@ -68,6 +69,7 @@ def list_payment_intents(
 
     items, has_more = list_payment_intents_repository(
         db=db,
+        merchant_id=merchant_id,
         status=status,
         reference=reference,
         created_from=normalized_created_from,

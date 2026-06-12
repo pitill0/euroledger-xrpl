@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 
 from fastapi.testclient import TestClient
 
+from app.api.dependencies.auth import get_current_merchant
 from app.db.session import get_db
 from app.domain.exceptions import (
     InvalidPaymentIntentStatusTransitionError,
@@ -33,6 +34,7 @@ def build_payment_intent(
 ) -> PaymentIntent:
     return PaymentIntent(
         id="intent-id",
+        merchant_id="merchant-id",
         reference="EL-TESTREFERENCE",
         amount="25.00",
         currency="EUR",
@@ -54,8 +56,13 @@ def override_get_db():
     yield Mock()
 
 
+def override_current_merchant():
+    return Mock(id="merchant-id")
+
+
 def test_cancel_payment_intent_returns_200() -> None:
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_merchant] = override_current_merchant
 
     payment_intent = build_payment_intent()
 
@@ -101,6 +108,7 @@ def test_cancel_payment_intent_returns_200() -> None:
 
 def test_cancel_payment_intent_replay_returns_200() -> None:
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_merchant] = override_current_merchant
 
     payment_intent = build_payment_intent()
 
@@ -135,6 +143,7 @@ def test_cancel_payment_intent_replay_returns_200() -> None:
 
 def test_cancel_payment_intent_not_found() -> None:
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_merchant] = override_current_merchant
 
     try:
         with patch(
@@ -156,6 +165,7 @@ def test_cancel_payment_intent_not_found() -> None:
 
 def test_cannot_cancel_confirmed_payment_intent() -> None:
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_merchant] = override_current_merchant
 
     payment_intent = build_payment_intent(
         status=PaymentIntentStatus.confirmed,
@@ -189,6 +199,7 @@ def test_cannot_cancel_confirmed_payment_intent() -> None:
 
 def test_cancellation_replay_with_different_reason_returns_409() -> None:
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_merchant] = override_current_merchant
 
     payment_intent = build_payment_intent()
 

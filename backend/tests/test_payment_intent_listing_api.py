@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 
 from fastapi.testclient import TestClient
 
+from app.api.dependencies.auth import get_current_merchant
 from app.db.session import get_db
 from app.domain.exceptions import (
     InvalidPaymentIntentCursorError,
@@ -29,6 +30,7 @@ NOW = datetime(
 def build_payment_intent() -> PaymentIntent:
     return PaymentIntent(
         id="intent-id",
+        merchant_id="merchant-id",
         reference="EL-TESTREFERENCE",
         amount="25.00",
         currency="EUR",
@@ -48,8 +50,13 @@ def override_get_db():
     yield Mock()
 
 
+def override_current_merchant():
+    return Mock(id="merchant-id")
+
+
 def test_list_payment_intents_returns_page() -> None:
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_merchant] = override_current_merchant
 
     result = PaymentIntentListResult(
         items=[build_payment_intent()],
@@ -91,6 +98,7 @@ def test_list_payment_intents_returns_page() -> None:
 
 def test_list_payment_intents_uses_defaults() -> None:
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_merchant] = override_current_merchant
 
     result = PaymentIntentListResult(
         items=[],
@@ -126,6 +134,7 @@ def test_list_payment_intents_uses_defaults() -> None:
 
 def test_invalid_cursor_returns_422() -> None:
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_merchant] = override_current_merchant
 
     try:
         with patch(
@@ -148,22 +157,32 @@ def test_invalid_cursor_returns_422() -> None:
 
 
 def test_invalid_status_returns_422() -> None:
-    response = TestClient(app).get(
-        "/payment-intents",
-        params={
-            "status_filter": "unknown",
-        },
-    )
+    app.dependency_overrides[get_current_merchant] = lambda: Mock(id="merchant-id")
+
+    try:
+        response = TestClient(app).get(
+            "/payment-intents",
+            params={
+                "status_filter": "unknown",
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
 
     assert response.status_code == 422
 
 
 def test_limit_above_maximum_returns_422() -> None:
-    response = TestClient(app).get(
-        "/payment-intents",
-        params={
-            "limit": 101,
-        },
-    )
+    app.dependency_overrides[get_current_merchant] = lambda: Mock(id="merchant-id")
+
+    try:
+        response = TestClient(app).get(
+            "/payment-intents",
+            params={
+                "limit": 101,
+            },
+        )
+    finally:
+        app.dependency_overrides.clear()
 
     assert response.status_code == 422

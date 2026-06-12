@@ -33,6 +33,7 @@ def build_payment_intent(
 ) -> PaymentIntent:
     return PaymentIntent(
         id="intent-id",
+        merchant_id="merchant-id",
         reference="EL-TESTREFERENCE",
         amount="25.00",
         currency="EUR",

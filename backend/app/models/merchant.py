@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from sqlalchemy import (
@@ -12,6 +13,9 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.payment_intent import Base
+
+if TYPE_CHECKING:
+    from app.models.payment_intent import PaymentIntent
 
 
 class Merchant(Base):
@@ -53,6 +57,10 @@ class Merchant(Base):
         server_default=func.now(),
         onupdate=func.now(),
         nullable=False,
+    )
+
+    payment_intents: Mapped[list["PaymentIntent"]] = relationship(
+        back_populates="merchant",
     )
 
     api_keys: Mapped[list["MerchantApiKey"]] = relationship(

@@ -43,6 +43,7 @@ def build_existing_payment_intent(
 ) -> PaymentIntent:
     return PaymentIntent(
         id="intent-id",
+        merchant_id="merchant-id",
         reference="EL-TESTREFERENCE",
         amount=payload.amount,
         currency="EUR",
@@ -87,6 +88,7 @@ def test_create_without_idempotency_key_creates_new_intent() -> None:
         result = create_payment_intent(
             db=db,
             payload=payload,
+            merchant_id="merchant-id",
             now=NOW,
         )
 
@@ -118,6 +120,7 @@ def test_first_idempotent_request_creates_intent() -> None:
         result = create_payment_intent(
             db=db,
             payload=payload,
+            merchant_id="merchant-id",
             idempotency_key="order-123",
             now=NOW,
         )
@@ -146,6 +149,7 @@ def test_idempotent_replay_returns_existing_intent() -> None:
         result = create_payment_intent(
             db=db,
             payload=payload,
+            merchant_id="merchant-id",
             idempotency_key="order-123",
             now=NOW,
         )
@@ -177,6 +181,7 @@ def test_reusing_key_with_different_payload_fails() -> None:
         ):
             create_payment_intent(
                 db=db,
+                merchant_id="merchant-id",
                 payload=different_payload,
                 idempotency_key="order-123",
                 now=NOW,
@@ -214,6 +219,7 @@ def test_concurrent_duplicate_returns_persisted_intent() -> None:
         result = create_payment_intent(
             db=db,
             payload=payload,
+            merchant_id="merchant-id",
             idempotency_key="order-123",
             now=NOW,
         )
