@@ -1,0 +1,47 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: default-sink
+  group_by:
+    - alertname
+    - component
+    - severity
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - receiver: critical-webhook
+      matchers:
+        - severity="critical"
+      group_wait: 10s
+      repeat_interval: 1h
+
+    - receiver: warning-webhook
+      matchers:
+        - severity="warning"
+      group_wait: 30s
+      repeat_interval: 4h
+
+receivers:
+  - name: default-sink
+
+  - name: critical-webhook
+    webhook_configs:
+      - url_file: /etc/alertmanager/secrets/webhook_url
+        send_resolved: true
+        max_alerts: 0
+
+  - name: warning-webhook
+    webhook_configs:
+      - url_file: /etc/alertmanager/secrets/webhook_url
+        send_resolved: true
+        max_alerts: 0
+
+inhibit_rules:
+  - source_matchers:
+      - severity="critical"
+    target_matchers:
+      - severity="warning"
+    equal:
+      - component

@@ -41,3 +41,7 @@ build/
 *.pem
 *.seed
 secrets/
+
+# Alertmanager local secrets
+observability/alertmanager/secrets/*
+!observability/alertmanager/secrets/.gitkeep

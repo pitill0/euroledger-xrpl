@@ -1,0 +1,5 @@
+services:
+  alertmanager:
+    volumes:
+      - ./observability/alertmanager/alertmanager-webhook.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./observability/alertmanager/secrets/webhook_url:/etc/alertmanager/secrets/webhook_url:ro
