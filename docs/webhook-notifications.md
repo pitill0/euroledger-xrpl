@@ -58,7 +58,7 @@ printf '%s\n' \
 Protect the file:
 
 ```bash
-chmod 600 observability/alertmanager/secrets/webhook_url
+chmod 644 observability/alertmanager/secrets/webhook_url
 ```
 
 Do not commit this file.
