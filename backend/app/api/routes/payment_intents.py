@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import (
@@ -10,6 +10,7 @@ from fastapi import (
     Response,
     status,
 )
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -36,6 +37,10 @@ from app.schemas.payment_intent import (
 )
 from app.services.payment_intent_api_metrics import (
     record_payment_intent_creation,
+)
+from app.services.payment_intent_csv_export import (
+    stream_payment_intents_csv,
+    validate_payment_intent_export_filters,
 )
 from app.services.payment_intent_listing import (
     list_payment_intents,
@@ -103,6 +108,14 @@ LimitFilter = Annotated[
     Query(
         ge=1,
         le=100,
+    ),
+]
+
+ExportMaxRows = Annotated[
+    int,
+    Query(
+        ge=1,
+        le=10000,
     ),
 ]
 
@@ -192,13 +205,70 @@ def list_payment_intents_endpoint(
         InvalidPaymentIntentListFilterError,
     ) as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
         ) from exc
 
     return PaymentIntentListResponse(
         items=[PaymentIntentRead.model_validate(item) for item in result.items],
         next_cursor=result.next_cursor,
+    )
+
+
+@router.get(
+    "/export",
+    response_class=StreamingResponse,
+    responses={
+        status.HTTP_200_OK: {
+            "content": {
+                "text/csv": {},
+            },
+            "description": ("Filtered payment intents exported as CSV."),
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "Invalid export filters.",
+        },
+    },
+)
+def export_payment_intents_endpoint(
+    db: DbSession,
+    status_filter: StatusFilter = None,
+    reference: ReferenceFilter = None,
+    created_from: CreatedFromFilter = None,
+    created_to: CreatedToFilter = None,
+    max_rows: ExportMaxRows = 1000,
+) -> StreamingResponse:
+    try:
+        validate_payment_intent_export_filters(
+            created_from=created_from,
+            created_to=created_to,
+        )
+    except InvalidPaymentIntentListFilterError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+
+    exported_at = datetime.now(UTC).strftime(
+        "%Y%m%dT%H%M%SZ",
+    )
+
+    filename = f"euroledger-payment-intents-{exported_at}.csv"
+
+    return StreamingResponse(
+        stream_payment_intents_csv(
+            db=db,
+            status=status_filter,
+            reference=reference,
+            created_from=created_from,
+            created_to=created_to,
+            max_rows=max_rows,
+        ),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": (f'attachment; filename="{filename}"'),
+            "X-Export-Max-Rows": str(max_rows),
+        },
     )
 
 
@@ -217,7 +287,7 @@ def validate_detected_payment_endpoint(
         )
     except PaymentValidationError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
         ) from exc
     except InvalidPaymentIntentStatusTransitionError as exc:
