@@ -1,0 +1,334 @@
+{
+  "name": "EuroLedger Alertmanager Router",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "euroledger-alerts",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "0a3a5e3d-0e45-4b9f-b1f8-8a55220bf8a1",
+      "name": "Alertmanager Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -960,
+        0
+      ],
+      "webhookId": "euroledger-alerts"
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $json.body ?? $json;\nconst groupedAlerts = Array.isArray(payload.alerts) && payload.alerts.length ? payload.alerts : [{}];\n\nreturn groupedAlerts.map((alert) => {\n  const labels = { ...(payload.commonLabels ?? {}), ...(alert.labels ?? {}) };\n  const annotations = { ...(payload.commonAnnotations ?? {}), ...(alert.annotations ?? {}) };\n\n  return {\n    json: {\n      receiver: payload.receiver ?? null,\n      status: alert.status ?? payload.status ?? 'unknown',\n      alertname: labels.alertname ?? 'unknown',\n      severity: labels.severity ?? 'unknown',\n      component: labels.component ?? 'unknown',\n      summary: annotations.summary ?? '',\n      description: annotations.description ?? '',\n      startsAt: alert.startsAt ?? null,\n      endsAt: alert.endsAt ?? null,\n      generatorURL: alert.generatorURL ?? null,\n      fingerprint: alert.fingerprint ?? null,\n      groupKey: payload.groupKey ?? null,\n      groupLabels: payload.groupLabels ?? {},\n      labels,\n      annotations,\n      originalPayload: payload,\n    },\n  };\n});"
+      },
+      "id": "f625a3c8-97a2-4240-8bd6-46411c624cb4",
+      "name": "Normalize Alertmanager Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "expression",
+        "numberOutputs": 3,
+        "output": "={{ $json.status === 'firing' ? 0 : ($json.status === 'resolved' ? 1 : 2) }}"
+      },
+      "id": "5c53c2cc-89db-4d80-a890-adc63b4fe6aa",
+      "name": "Route by Status",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        -480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "expression",
+        "numberOutputs": 3,
+        "output": "={{ $json.severity === 'critical' ? 0 : ($json.severity === 'warning' ? 1 : 2) }}"
+      },
+      "id": "eb8d9858-40b1-4549-85f4-a57e54255575",
+      "name": "Route Firing by Severity",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        -240,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "expression",
+        "numberOutputs": 4,
+        "output": "={{ $json.component === 'backend' ? 0 : ($json.component === 'xrpl-worker' ? 1 : ($json.component === 'payment-intent-expirer' ? 2 : 3)) }}"
+      },
+      "id": "218bf341-c8d5-4ec1-9407-1edcc89fc85e",
+      "name": "Route by Component",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        0,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "03a1c249",
+              "name": "route",
+              "value": "backend",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "03a1c249-fbee-481d-8487-a1f776528b29",
+      "name": "Backend Alert",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        288,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1b14320",
+              "name": "route",
+              "value": "xrpl-worker",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b14320-1502-4e8d-9258-b8bf2d31019e",
+      "name": "XRPL Worker Alert",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        288,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "899c9768",
+              "name": "route",
+              "value": "payment-intent-expirer",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "899c9768-08fc-4884-b614-81098ff85d89",
+      "name": "Expirer Alert",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        288,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d3ee9839",
+              "name": "route",
+              "value": "other-component",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d3ee9839-a430-43fb-ad16-b451913ae75a",
+      "name": "Other Component",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        288,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "89a720b8",
+              "name": "route",
+              "value": "resolved",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "89a720b8-da60-47e7-9f16-6b30bbc14f7d",
+      "name": "Resolved Alert",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -240,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a177530f",
+              "name": "route",
+              "value": "unclassified",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a177530f-011c-4f0a-ab00-35ac07cd0ac6",
+      "name": "Unclassified Event",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -240,
+        240
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Alertmanager Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Alertmanager Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Alertmanager Payload": {
+      "main": [
+        [
+          {
+            "node": "Route by Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Status": {
+      "main": [
+        [
+          {
+            "node": "Route Firing by Severity",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resolved Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unclassified Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Firing by Severity": {
+      "main": [
+        [
+          {
+            "node": "Route by Component",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Route by Component",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unclassified Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Component": {
+      "main": [
+        [
+          {
+            "node": "Backend Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "XRPL Worker Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Expirer Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Other Component",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "7a475159-14ea-4a70-8a3f-1598d267c019",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}
