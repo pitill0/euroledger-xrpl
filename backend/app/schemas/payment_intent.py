@@ -19,14 +19,30 @@ class PaymentIntentCreate(BaseModel):
 
 
 class PaymentIntentConfirm(BaseModel):
-    xrpl_transaction_hash: str = Field(..., min_length=64, max_length=128)
+    xrpl_transaction_hash: str = Field(
+        ...,
+        min_length=64,
+        max_length=128,
+    )
+
+
+class PaymentIntentCancel(BaseModel):
+    reason: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=255,
+    )
 
 
 class PaymentIntentDetectedPayment(BaseModel):
     reference: str = Field(..., min_length=4, max_length=64)
     amount: Decimal = Field(..., gt=0, decimal_places=2)
     currency: str = Field(default="EUR", min_length=3, max_length=12)
-    xrpl_transaction_hash: str = Field(..., min_length=64, max_length=128)
+    xrpl_transaction_hash: str = Field(
+        ...,
+        min_length=64,
+        max_length=128,
+    )
     destination: str | None = Field(default=None, max_length=128)
     issuer: str | None = Field(default=None, max_length=128)
 
@@ -41,6 +57,8 @@ class PaymentIntentRead(BaseModel):
     expected_destination: str | None
     xrpl_transaction_hash: str | None
     expires_at: datetime
+    cancelled_at: datetime | None
+    cancellation_reason: str | None
     created_at: datetime
     updated_at: datetime
 

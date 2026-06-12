@@ -75,6 +75,16 @@ class PaymentIntent(Base):
         index=True,
     )
 
+    cancelled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    cancellation_reason: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
     idempotency_key: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,

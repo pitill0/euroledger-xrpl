@@ -13,12 +13,14 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.domain.exceptions import (
     InvalidPaymentIntentStatusTransitionError,
+    PaymentIntentCancellationConflictError,
     PaymentValidationError,
 )
 from app.domain.idempotency import (
     IdempotencyConflictError,
 )
 from app.schemas.payment_intent import (
+    PaymentIntentCancel,
     PaymentIntentConfirm,
     PaymentIntentCreate,
     PaymentIntentDetectedPayment,
@@ -28,6 +30,7 @@ from app.services.payment_intent_api_metrics import (
     record_payment_intent_creation,
 )
 from app.services.payment_intents import (
+    cancel_payment_intent,
     confirm_payment_intent,
     create_payment_intent,
     get_payment_intent,
@@ -205,10 +208,55 @@ def confirm_payment_intent_endpoint(
         return confirm_payment_intent(
             db=db,
             payment_intent=payment_intent,
-            xrpl_transaction_hash=(payload.xrpl_transaction_hash),
+            xrpl_transaction_hash=payload.xrpl_transaction_hash,
         )
     except InvalidPaymentIntentStatusTransitionError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(exc),
         ) from exc
+
+
+@router.post(
+    "/{payment_intent_id}/cancel",
+    response_model=PaymentIntentRead,
+    responses={
+        status.HTTP_409_CONFLICT: {
+            "description": (
+                "Payment intent cannot be cancelled or was already cancelled with another reason."
+            ),
+        },
+    },
+)
+def cancel_payment_intent_endpoint(
+    payment_intent_id: str,
+    payload: PaymentIntentCancel,
+    db: DbSession,
+) -> PaymentIntentRead:
+    payment_intent = get_payment_intent(
+        db,
+        payment_intent_id,
+    )
+
+    if payment_intent is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Payment intent not found",
+        )
+
+    try:
+        result = cancel_payment_intent(
+            db=db,
+            payment_intent=payment_intent,
+            reason=payload.reason,
+        )
+    except (
+        InvalidPaymentIntentStatusTransitionError,
+        PaymentIntentCancellationConflictError,
+    ) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
+
+    return result.payment_intent

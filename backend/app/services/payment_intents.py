@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.domain.exceptions import (
     InvalidPaymentIntentStatusTransitionError,
+    PaymentIntentCancellationConflictError,
     PaymentValidationError,
 )
 from app.domain.idempotency import (
@@ -42,6 +43,12 @@ from app.schemas.payment_intent import (
 class PaymentIntentCreationResult:
     payment_intent: PaymentIntent
     created: bool
+
+
+@dataclass(frozen=True)
+class PaymentIntentCancellationResult:
+    payment_intent: PaymentIntent
+    cancelled: bool
 
 
 @dataclass(frozen=True)
@@ -200,6 +207,47 @@ def confirm_payment_intent(
     )
 
 
+def cancel_payment_intent(
+    db: Session,
+    payment_intent: PaymentIntent,
+    *,
+    reason: str | None,
+    now: datetime | None = None,
+) -> PaymentIntentCancellationResult:
+    if payment_intent.status == PaymentIntentStatus.cancelled:
+        if payment_intent.cancellation_reason != reason:
+            raise PaymentIntentCancellationConflictError(
+                "Payment intent was already cancelled with a different reason.",
+            )
+
+        return PaymentIntentCancellationResult(
+            payment_intent=payment_intent,
+            cancelled=False,
+        )
+
+    if not can_transition_payment_intent_status(
+        payment_intent.status,
+        PaymentIntentStatus.cancelled,
+    ):
+        raise InvalidPaymentIntentStatusTransitionError(
+            f"Cannot cancel payment intent from status '{payment_intent.status}'."
+        )
+
+    payment_intent.status = PaymentIntentStatus.cancelled
+    payment_intent.cancelled_at = now or utc_now()
+    payment_intent.cancellation_reason = reason
+
+    payment_intent = update_payment_intent(
+        db,
+        payment_intent,
+    )
+
+    return PaymentIntentCancellationResult(
+        payment_intent=payment_intent,
+        cancelled=True,
+    )
+
+
 def expire_pending_payment_intents(
     db: Session,
     *,
@@ -253,5 +301,5 @@ def validate_and_confirm_detected_payment(
     return confirm_payment_intent(
         db=db,
         payment_intent=payment_intent,
-        xrpl_transaction_hash=(detected_payment.xrpl_transaction_hash),
+        xrpl_transaction_hash=detected_payment.xrpl_transaction_hash,
     )

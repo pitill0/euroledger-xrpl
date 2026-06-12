@@ -36,6 +36,8 @@ def build_payment_intent() -> PaymentIntent:
         description="Order 123",
         expected_destination=None,
         xrpl_transaction_hash=None,
+        cancelled_at=None,
+        cancellation_reason=None,
         expires_at=NOW + timedelta(minutes=15),
         created_at=NOW,
         updated_at=NOW,
