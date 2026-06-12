@@ -12,6 +12,9 @@ from app.services.payment_intent_api_metrics import (
 from app.services.payment_intent_expiration_metrics import (
     generate_payment_intent_expiration_metrics,
 )
+from app.services.payment_intent_state_metrics import (
+    generate_payment_intent_state_metrics,
+)
 from app.services.worker_metrics import (
     generate_xrpl_worker_metrics,
 )
@@ -43,9 +46,13 @@ def metrics_endpoint(
         stale_after_seconds=(settings.payment_intent_expirer_stale_after_seconds),
     )
 
-    payment_intent_api_metrics = generate_payment_intent_api_metrics()
+    state_metrics = generate_payment_intent_state_metrics(
+        db=db,
+    )
+
+    api_metrics = generate_payment_intent_api_metrics()
 
     return Response(
-        content=(xrpl_metrics + expiration_metrics + payment_intent_api_metrics),
+        content=(xrpl_metrics + expiration_metrics + state_metrics + api_metrics),
         media_type=CONTENT_TYPE_LATEST,
     )

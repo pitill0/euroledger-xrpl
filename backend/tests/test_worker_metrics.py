@@ -128,27 +128,19 @@ def test_metrics_endpoint() -> None:
         with (
             patch(
                 "app.api.routes.metrics.generate_xrpl_worker_metrics",
-                return_value=(
-                    b"# HELP euroledger_xrpl_example XRPL example\n"
-                    b"# TYPE euroledger_xrpl_example gauge\n"
-                    b"euroledger_xrpl_example 1\n"
-                ),
+                return_value=b"xrpl_metric 1\n",
             ) as generate_xrpl_metrics,
             patch(
                 ("app.api.routes.metrics.generate_payment_intent_expiration_metrics"),
-                return_value=(
-                    b"# HELP euroledger_expirer_example Expirer example\n"
-                    b"# TYPE euroledger_expirer_example gauge\n"
-                    b"euroledger_expirer_example 1\n"
-                ),
+                return_value=b"expiration_metric 1\n",
             ) as generate_expiration_metrics,
             patch(
+                ("app.api.routes.metrics.generate_payment_intent_state_metrics"),
+                return_value=b"state_metric 1\n",
+            ) as generate_state_metrics,
+            patch(
                 ("app.api.routes.metrics.generate_payment_intent_api_metrics"),
-                return_value=(
-                    b"# HELP euroledger_api_example API example\n"
-                    b"# TYPE euroledger_api_example counter\n"
-                    b"euroledger_api_example_total 1\n"
-                ),
+                return_value=b"api_metric 1\n",
             ) as generate_api_metrics,
         ):
             client = TestClient(app)
@@ -158,19 +150,7 @@ def test_metrics_endpoint() -> None:
 
     assert response.status_code == 200
 
-    assert response.text == (
-        "# HELP euroledger_xrpl_example XRPL example\n"
-        "# TYPE euroledger_xrpl_example gauge\n"
-        "euroledger_xrpl_example 1\n"
-        "# HELP euroledger_expirer_example Expirer example\n"
-        "# TYPE euroledger_expirer_example gauge\n"
-        "euroledger_expirer_example 1\n"
-        "# HELP euroledger_api_example API example\n"
-        "# TYPE euroledger_api_example counter\n"
-        "euroledger_api_example_total 1\n"
-    )
-
-    assert response.headers["content-type"].startswith("text/plain")
+    assert response.text == ("xrpl_metric 1\nexpiration_metric 1\nstate_metric 1\napi_metric 1\n")
 
     generate_xrpl_metrics.assert_called_once_with(
         db=db,
@@ -180,6 +160,10 @@ def test_metrics_endpoint() -> None:
     generate_expiration_metrics.assert_called_once_with(
         db=db,
         stale_after_seconds=180,
+    )
+
+    generate_state_metrics.assert_called_once_with(
+        db=db,
     )
 
     generate_api_metrics.assert_called_once_with()

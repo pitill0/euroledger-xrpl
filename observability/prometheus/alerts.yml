@@ -95,3 +95,36 @@ groups:
         annotations:
           summary: Payment intent expirer has no recent successful cycle
           description: The latest successful payment intent expiration cycle is more than five minutes old.
+
+  - name: euroledger-payment-intent-state
+    interval: 30s
+    rules:
+      - alert: EuroLedgerPaymentIntentPendingBacklog
+        expr: euroledger_payment_intents_by_status{status="pending"} > 100
+        for: 10m
+        labels:
+          severity: warning
+          component: payment-intents
+        annotations:
+          summary: Payment intent pending backlog detected
+          description: More than 100 payment intents have remained pending for at least ten minutes.
+
+      - alert: EuroLedgerPaymentIntentOldestPendingTooOld
+        expr: euroledger_payment_intent_oldest_pending_age_seconds > 3600
+        for: 10m
+        labels:
+          severity: warning
+          component: payment-intents
+        annotations:
+          summary: Old pending payment intent detected
+          description: The oldest pending payment intent is more than one hour old.
+
+      - alert: EuroLedgerPaymentIntentPastDuePending
+        expr: euroledger_payment_intents_pending_past_due > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: payment-intent-expirer
+        annotations:
+          summary: Expired payment intents remain pending
+          description: One or more payment intents are past their expiration time but remain in pending status.
