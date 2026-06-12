@@ -1,12 +1,17 @@
 from functools import lru_cache
 from typing import Any
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     app_env: str = "local"
+
+    merchant_api_key_pepper: str = Field(
+        default="local-development-only-change-me-before-production",
+        min_length=32,
+    )
 
     payment_intent_expirer_stale_after_seconds: int = 180
 
@@ -29,9 +34,16 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    @field_validator("xrpl_merchant_address", "xrpl_issuer_address", mode="before")
+    @field_validator(
+        "xrpl_merchant_address",
+        "xrpl_issuer_address",
+        mode="before",
+    )
     @classmethod
-    def empty_string_to_none(cls, value: Any) -> Any:
+    def empty_string_to_none(
+        cls,
+        value: Any,
+    ) -> Any:
         if value == "":
             return None
 
@@ -42,7 +54,8 @@ class Settings(BaseSettings):
         return (
             "postgresql+psycopg://"
             f"{self.postgres_user}:{self.postgres_password}"
-            f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+            f"@{self.postgres_host}:{self.postgres_port}"
+            f"/{self.postgres_db}"
         )
 
 

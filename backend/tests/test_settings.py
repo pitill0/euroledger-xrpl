@@ -60,3 +60,11 @@ def test_payment_intent_expirer_stale_threshold_default() -> None:
     )
 
     assert settings.payment_intent_expirer_stale_after_seconds == 180
+
+
+def test_merchant_api_key_pepper_has_safe_length() -> None:
+    settings = Settings(
+        _env_file=None,
+    )
+
+    assert len(settings.merchant_api_key_pepper) >= 32

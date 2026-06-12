@@ -18,5 +18,13 @@ class InvalidPaymentIntentListFilterError(DomainError):
     """Raised when payment intent list filters are inconsistent."""
 
 
+class MerchantAlreadyExistsError(DomainError):
+    """Raised when a merchant slug is already registered."""
+
+
+class MerchantNotFoundError(DomainError):
+    """Raised when a merchant cannot be found."""
+
+
 class PaymentValidationError(DomainError):
     """Raised when a detected payment does not match a payment intent."""
