@@ -28,3 +28,7 @@ class MerchantNotFoundError(DomainError):
 
 class PaymentValidationError(DomainError):
     """Raised when a detected payment does not match a payment intent."""
+
+
+class WebhookDeliveryRetryConflictError(DomainError):
+    """Raised when a webhook delivery cannot be manually retried."""

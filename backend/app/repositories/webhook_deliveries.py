@@ -86,3 +86,13 @@ def get_webhook_delivery_by_id(
     )
 
     return db.execute(statement).scalar_one_or_none()
+
+
+def update_webhook_delivery(
+    db: Session,
+    delivery: WebhookDelivery,
+) -> WebhookDelivery:
+    db.commit()
+    db.refresh(delivery)
+
+    return delivery

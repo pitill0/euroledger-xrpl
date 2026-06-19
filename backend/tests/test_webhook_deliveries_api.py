@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from app.api.dependencies.auth import get_current_merchant
 from app.db.session import get_db
+from app.domain.exceptions import WebhookDeliveryRetryConflictError
 from app.main import app
 from app.models.webhook import WebhookDelivery, WebhookDeliveryStatus
 
@@ -196,6 +197,117 @@ def test_get_cross_merchant_webhook_delivery_returns_not_found() -> None:
     assert response.json()["detail"] == "Webhook delivery not found"
 
     assert get_repository.call_args.kwargs["merchant_id"] == MERCHANT_ID
+
+
+def test_retry_webhook_delivery_requeues_delivery() -> None:
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_merchant] = override_current_merchant
+
+    delivery = build_webhook_delivery()
+    retried_delivery = build_webhook_delivery(status=WebhookDeliveryStatus.pending)
+    retried_delivery.attempt_count = 0
+    retried_delivery.next_attempt_at = NOW
+    retried_delivery.last_attempt_at = None
+    retried_delivery.response_status_code = None
+    retried_delivery.response_body = None
+    retried_delivery.error_message = None
+
+    try:
+        with (
+            patch(
+                "app.api.routes.webhook_deliveries.get_webhook_delivery_by_id",
+                return_value=delivery,
+            ) as get_repository,
+            patch(
+                "app.api.routes.webhook_deliveries.retry_webhook_delivery",
+                return_value=retried_delivery,
+            ) as retry_service,
+        ):
+            response = TestClient(app).post(
+                "/webhook-deliveries/delivery-id/retry",
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["id"] == "delivery-id"
+    assert body["merchant_id"] == MERCHANT_ID
+    assert body["status"] == "pending"
+    assert body["attempt_count"] == 0
+    assert body["next_attempt_at"] == NOW.isoformat().replace("+00:00", "Z")
+    assert body["last_attempt_at"] is None
+    assert body["response_status_code"] is None
+    assert body["response_body"] is None
+    assert body["error_message"] is None
+
+    get_repository.assert_called_once_with(
+        db=get_repository.call_args.kwargs["db"],
+        delivery_id="delivery-id",
+        merchant_id=MERCHANT_ID,
+    )
+    retry_service.assert_called_once_with(
+        db=get_repository.call_args.kwargs["db"],
+        delivery=delivery,
+    )
+
+
+def test_retry_cross_merchant_webhook_delivery_returns_not_found() -> None:
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_merchant] = override_current_merchant
+
+    try:
+        with (
+            patch(
+                "app.api.routes.webhook_deliveries.get_webhook_delivery_by_id",
+                return_value=None,
+            ) as get_repository,
+            patch(
+                "app.api.routes.webhook_deliveries.retry_webhook_delivery",
+            ) as retry_service,
+        ):
+            response = TestClient(app).post(
+                "/webhook-deliveries/other-merchant-delivery/retry",
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Webhook delivery not found"
+
+    assert get_repository.call_args.kwargs["merchant_id"] == MERCHANT_ID
+    retry_service.assert_not_called()
+
+
+def test_retry_delivered_webhook_delivery_returns_409() -> None:
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_merchant] = override_current_merchant
+
+    delivery = build_webhook_delivery(status=WebhookDeliveryStatus.delivered)
+
+    try:
+        with (
+            patch(
+                "app.api.routes.webhook_deliveries.get_webhook_delivery_by_id",
+                return_value=delivery,
+            ),
+            patch(
+                "app.api.routes.webhook_deliveries.retry_webhook_delivery",
+                side_effect=WebhookDeliveryRetryConflictError(
+                    "Delivered webhook deliveries cannot be retried.",
+                ),
+            ),
+        ):
+            response = TestClient(app).post(
+                "/webhook-deliveries/delivery-id/retry",
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == ("Delivered webhook deliveries cannot be retried.")
 
 
 def test_invalid_webhook_delivery_status_returns_422() -> None:

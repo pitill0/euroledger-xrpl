@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.api.dependencies.auth import CurrentMerchant
 from app.db.session import get_db
+from app.domain.exceptions import WebhookDeliveryRetryConflictError
 from app.models.webhook import WebhookDeliveryStatus
 from app.repositories.webhook_deliveries import (
     get_webhook_delivery_by_id,
@@ -14,6 +15,7 @@ from app.schemas.webhook import (
     WebhookDeliveryListResponse,
     WebhookDeliveryRead,
 )
+from app.services.webhook_deliveries import retry_webhook_delivery
 
 router = APIRouter(
     prefix="/webhook-deliveries",
@@ -89,6 +91,44 @@ def list_webhook_deliveries_endpoint(
     return WebhookDeliveryListResponse(
         items=[WebhookDeliveryRead.model_validate(delivery) for delivery in deliveries],
     )
+
+
+@router.post(
+    "/{delivery_id}/retry",
+    response_model=WebhookDeliveryRead,
+    responses={
+        status.HTTP_409_CONFLICT: {
+            "description": "Delivered webhook deliveries cannot be retried.",
+        },
+    },
+)
+def retry_webhook_delivery_endpoint(
+    delivery_id: str,
+    db: DbSession,
+    merchant: CurrentMerchant,
+) -> WebhookDeliveryRead:
+    delivery = get_webhook_delivery_by_id(
+        db=db,
+        delivery_id=delivery_id,
+        merchant_id=merchant.id,
+    )
+
+    if delivery is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Webhook delivery not found",
+        )
+
+    try:
+        return retry_webhook_delivery(
+            db=db,
+            delivery=delivery,
+        )
+    except WebhookDeliveryRetryConflictError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
 
 
 @router.get(
