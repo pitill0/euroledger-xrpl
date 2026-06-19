@@ -52,7 +52,7 @@ The first goal is to build a local, testnet-only proof of concept that demonstra
 euroledger-xrpl/
 ├── backend/              # FastAPI backend
 ├── worker/               # XRPL monitoring worker
-├── plugin-woocommerce/   # Experimental WooCommerce gateway
+├── plugin-woocommerce/   # Experimental WooCommerce gateway skeleton
 ├── sdk/                  # Future SDKs
 ├── scripts/              # XRPL testnet scripts
 ├── tests/                # Automated tests
