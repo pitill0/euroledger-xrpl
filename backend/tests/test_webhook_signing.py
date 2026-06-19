@@ -20,9 +20,7 @@ def test_serialize_webhook_payload_uses_compact_json() -> None:
         }
     )
 
-    assert raw_body == (
-        b'{"type":"payment_intent.confirmed","data":{"object":{"id":"intent-id"}}}'
-    )
+    assert raw_body == (b'{"type":"payment_intent.confirmed","data":{"object":{"id":"intent-id"}}}')
 
 
 def test_sign_webhook_payload_uses_timestamp_and_raw_body() -> None:
@@ -32,7 +30,7 @@ def test_sign_webhook_payload_uses_timestamp_and_raw_body() -> None:
 
     expected_digest = hmac.new(
         secret.encode("utf-8"),
-        f"{timestamp}.".encode("utf-8") + raw_body,
+        f"{timestamp}.".encode() + raw_body,
         hashlib.sha256,
     ).hexdigest()
 
