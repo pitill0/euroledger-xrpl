@@ -40,6 +40,23 @@ def list_webhook_endpoints(
     return list(db.execute(statement).scalars().all())
 
 
+def list_enabled_webhook_endpoints(
+    db: Session,
+    *,
+    merchant_id: str,
+) -> list[MerchantWebhookEndpoint]:
+    statement = (
+        select(MerchantWebhookEndpoint)
+        .where(
+            MerchantWebhookEndpoint.merchant_id == merchant_id,
+            MerchantWebhookEndpoint.enabled.is_(True),
+        )
+        .order_by(MerchantWebhookEndpoint.created_at, MerchantWebhookEndpoint.id)
+    )
+
+    return list(db.execute(statement).scalars().all())
+
+
 def get_webhook_endpoint_by_id(
     db: Session,
     endpoint_id: str,

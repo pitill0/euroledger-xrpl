@@ -38,6 +38,12 @@ from app.schemas.payment_intent import (
     PaymentIntentCreate,
     PaymentIntentDetectedPayment,
 )
+from app.services.webhook_events import (
+    PAYMENT_INTENT_CANCELLED_EVENT,
+    PAYMENT_INTENT_CONFIRMED_EVENT,
+    PAYMENT_INTENT_EXPIRED_EVENT,
+    enqueue_payment_intent_webhook_deliveries,
+)
 
 
 @dataclass(frozen=True)
@@ -214,6 +220,12 @@ def confirm_payment_intent(
     payment_intent.status = PaymentIntentStatus.confirmed
     payment_intent.xrpl_transaction_hash = xrpl_transaction_hash
 
+    enqueue_payment_intent_webhook_deliveries(
+        db=db,
+        payment_intent=payment_intent,
+        event_type=PAYMENT_INTENT_CONFIRMED_EVENT,
+    )
+
     return update_payment_intent(
         db,
         payment_intent,
@@ -250,6 +262,13 @@ def cancel_payment_intent(
     payment_intent.cancelled_at = now or utc_now()
     payment_intent.cancellation_reason = reason
 
+    enqueue_payment_intent_webhook_deliveries(
+        db=db,
+        payment_intent=payment_intent,
+        event_type=PAYMENT_INTENT_CANCELLED_EVENT,
+        occurred_at=payment_intent.cancelled_at,
+    )
+
     payment_intent = update_payment_intent(
         db,
         payment_intent,
@@ -275,6 +294,8 @@ def expire_pending_payment_intents(
         limit=limit,
     )
 
+    expired_count = 0
+
     for payment_intent in payment_intents:
         if not can_transition_payment_intent_status(
             payment_intent.status,
@@ -283,11 +304,19 @@ def expire_pending_payment_intents(
             continue
 
         payment_intent.status = PaymentIntentStatus.expired
+        expired_count += 1
+
+        enqueue_payment_intent_webhook_deliveries(
+            db=db,
+            payment_intent=payment_intent,
+            event_type=PAYMENT_INTENT_EXPIRED_EVENT,
+            occurred_at=expires_before,
+        )
 
     db.commit()
 
     return PaymentIntentExpirationResult(
-        expired=len(payment_intents),
+        expired=expired_count,
         limit=limit,
     )
 

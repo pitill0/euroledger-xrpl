@@ -10,6 +10,7 @@ from app.services.payment_intents import (
     create_payment_intent,
     expire_pending_payment_intents,
 )
+from app.services.webhook_events import PAYMENT_INTENT_EXPIRED_EVENT
 
 NOW = datetime(
     2026,
@@ -103,10 +104,15 @@ def test_expire_pending_payment_intents() -> None:
     first = build_payment_intent()
     second = build_payment_intent()
 
-    with patch(
-        ("app.services.payment_intents.get_expired_pending_payment_intents"),
-        return_value=[first, second],
-    ) as get_expired:
+    with (
+        patch(
+            ("app.services.payment_intents.get_expired_pending_payment_intents"),
+            return_value=[first, second],
+        ) as get_expired,
+        patch(
+            "app.services.payment_intents.enqueue_payment_intent_webhook_deliveries",
+        ) as enqueue_deliveries,
+    ):
         result = expire_pending_payment_intents(
             db=db,
             limit=100,
@@ -126,13 +132,32 @@ def test_expire_pending_payment_intents() -> None:
 
     db.commit.assert_called_once_with()
 
+    assert enqueue_deliveries.call_count == 2
+    enqueue_deliveries.assert_any_call(
+        db=db,
+        payment_intent=first,
+        event_type=PAYMENT_INTENT_EXPIRED_EVENT,
+        occurred_at=NOW,
+    )
+    enqueue_deliveries.assert_any_call(
+        db=db,
+        payment_intent=second,
+        event_type=PAYMENT_INTENT_EXPIRED_EVENT,
+        occurred_at=NOW,
+    )
+
 
 def test_expiration_cycle_with_no_matches() -> None:
     db = Mock()
 
-    with patch(
-        ("app.services.payment_intents.get_expired_pending_payment_intents"),
-        return_value=[],
+    with (
+        patch(
+            ("app.services.payment_intents.get_expired_pending_payment_intents"),
+            return_value=[],
+        ),
+        patch(
+            "app.services.payment_intents.enqueue_payment_intent_webhook_deliveries",
+        ) as enqueue_deliveries,
     ):
         result = expire_pending_payment_intents(
             db=db,
@@ -144,3 +169,4 @@ def test_expiration_cycle_with_no_matches() -> None:
     assert result.limit == 100
 
     db.commit.assert_called_once_with()
+    enqueue_deliveries.assert_not_called()
