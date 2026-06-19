@@ -19,6 +19,21 @@ The current backend workflow validates:
 
 These checks run on every push to `main` and on pull requests.
 
+## Known Warnings
+
+At this stage, the backend test suite may show the following warning:
+
+```text
+StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+
+This warning comes from the FastAPI/Starlette test client dependency chain, not from EuroLedger XRPL application code.
+
+The current test suite still passes successfully, so this warning is accepted temporarily while the project remains in early development.
+
+A future maintenance task should review the recommended FastAPI/Starlette testing stack and decide whether to migrate to httpx2, adjust dependency versions or replace TestClient usage with another ASGI testing approach.
+```
+
+
 ## Workflow Scope
 
 The current CI scope is intentionally small.
