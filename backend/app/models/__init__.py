@@ -12,6 +12,7 @@ from app.models.webhook import (
     WebhookDelivery,
     WebhookDeliveryStatus,
 )
+from app.models.webhook_delivery_worker_state import WebhookDeliveryWorkerState
 from app.models.worker_state import WorkerState
 
 __all__ = [
@@ -24,5 +25,6 @@ __all__ = [
     "WorkerState",
     "MerchantWebhookEndpoint",
     "WebhookDelivery",
+    "WebhookDeliveryWorkerState",
     "WebhookDeliveryStatus",
 ]

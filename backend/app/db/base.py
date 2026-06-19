@@ -3,6 +3,7 @@ from app.models import (
     MerchantWebhookEndpoint,
     PaymentIntent,
     WebhookDelivery,
+    WebhookDeliveryWorkerState,
     WorkerState,
 )
 
@@ -11,5 +12,6 @@ __all__ = [
     "MerchantWebhookEndpoint",
     "PaymentIntent",
     "WebhookDelivery",
+    "WebhookDeliveryWorkerState",
     "WorkerState",
 ]

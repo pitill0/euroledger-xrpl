@@ -139,6 +139,10 @@ def test_metrics_endpoint() -> None:
                 return_value=b"state_metric 1\n",
             ) as generate_state_metrics,
             patch(
+                ("app.api.routes.metrics.generate_webhook_delivery_metrics"),
+                return_value=b"webhook_metric 1\n",
+            ) as generate_webhook_metrics,
+            patch(
                 ("app.api.routes.metrics.generate_payment_intent_api_metrics"),
                 return_value=b"api_metric 1\n",
             ) as generate_api_metrics,
@@ -150,7 +154,9 @@ def test_metrics_endpoint() -> None:
 
     assert response.status_code == 200
 
-    assert response.text == ("xrpl_metric 1\nexpiration_metric 1\nstate_metric 1\napi_metric 1\n")
+    assert response.text == (
+        "xrpl_metric 1\nexpiration_metric 1\nwebhook_metric 1\nstate_metric 1\napi_metric 1\n"
+    )
 
     generate_xrpl_metrics.assert_called_once_with(
         db=db,
@@ -158,6 +164,11 @@ def test_metrics_endpoint() -> None:
     )
 
     generate_expiration_metrics.assert_called_once_with(
+        db=db,
+        stale_after_seconds=180,
+    )
+
+    generate_webhook_metrics.assert_called_once_with(
         db=db,
         stale_after_seconds=180,
     )

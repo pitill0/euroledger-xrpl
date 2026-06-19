@@ -6,6 +6,12 @@ from threading import Event
 from types import FrameType
 
 from app.db.session import SessionLocal
+from app.repositories.webhook_delivery_worker_states import (
+    get_or_create_webhook_delivery_worker_state,
+    mark_webhook_delivery_cycle_failed,
+    mark_webhook_delivery_cycle_started,
+    mark_webhook_delivery_cycle_succeeded,
+)
 from app.services.webhook_delivery import (
     DEFAULT_WEBHOOK_MAX_ATTEMPTS,
     DEFAULT_WEBHOOK_TIMEOUT_SECONDS,
@@ -93,16 +99,43 @@ def run_once(
     max_attempts: int,
 ) -> WebhookDeliveryRunResult:
     with SessionLocal() as db:
+        state = get_or_create_webhook_delivery_worker_state(db)
+
+        mark_webhook_delivery_cycle_started(
+            db=db,
+            state=state,
+        )
+
         try:
-            return process_due_webhook_deliveries(
+            result = process_due_webhook_deliveries(
                 db=db,
                 limit=limit,
                 timeout=timeout,
                 max_attempts=max_attempts,
             )
-        except Exception:
+        except Exception as exc:
             db.rollback()
+
+            state = get_or_create_webhook_delivery_worker_state(db)
+
+            mark_webhook_delivery_cycle_failed(
+                db=db,
+                state=state,
+                error=str(exc),
+            )
+
             raise
+
+        mark_webhook_delivery_cycle_succeeded(
+            db=db,
+            state=state,
+            processed=result.processed,
+            delivered=result.delivered,
+            failed=result.failed,
+            discarded=result.discarded,
+        )
+
+        return result
 
 
 def log_result(

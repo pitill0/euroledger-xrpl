@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     )
 
     payment_intent_expirer_stale_after_seconds: int = 180
+    webhook_delivery_worker_stale_after_seconds: int = 180
 
     postgres_user: str = "euroledger"
     postgres_password: str = "euroledger"

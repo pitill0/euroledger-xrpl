@@ -33,9 +33,19 @@ def test_run_once_processes_due_webhook_deliveries() -> None:
             "app.commands.webhook_worker.SessionLocal",
         ) as session_local,
         patch(
+            "app.commands.webhook_worker.get_or_create_webhook_delivery_worker_state",
+            return_value=Mock(),
+        ),
+        patch(
+            "app.commands.webhook_worker.mark_webhook_delivery_cycle_started",
+        ),
+        patch(
             "app.commands.webhook_worker.process_due_webhook_deliveries",
             return_value=expected_result,
         ) as process_deliveries,
+        patch(
+            "app.commands.webhook_worker.mark_webhook_delivery_cycle_succeeded",
+        ) as mark_succeeded,
     ):
         session_local.return_value.__enter__.return_value = db
 
@@ -52,6 +62,14 @@ def test_run_once_processes_due_webhook_deliveries() -> None:
         max_attempts=5,
     )
     assert result == expected_result
+    mark_succeeded.assert_called_once_with(
+        db=db,
+        state=mark_succeeded.call_args.kwargs["state"],
+        processed=3,
+        delivered=1,
+        failed=1,
+        discarded=1,
+    )
 
 
 def test_run_once_rolls_back_on_error() -> None:
@@ -62,9 +80,19 @@ def test_run_once_rolls_back_on_error() -> None:
             "app.commands.webhook_worker.SessionLocal",
         ) as session_local,
         patch(
+            "app.commands.webhook_worker.get_or_create_webhook_delivery_worker_state",
+            return_value=Mock(),
+        ),
+        patch(
+            "app.commands.webhook_worker.mark_webhook_delivery_cycle_started",
+        ),
+        patch(
             "app.commands.webhook_worker.process_due_webhook_deliveries",
             side_effect=RuntimeError("database unavailable"),
         ),
+        patch(
+            "app.commands.webhook_worker.mark_webhook_delivery_cycle_failed",
+        ) as mark_failed,
         pytest.raises(
             RuntimeError,
             match="database unavailable",
@@ -79,6 +107,11 @@ def test_run_once_rolls_back_on_error() -> None:
         )
 
     db.rollback.assert_called_once_with()
+    mark_failed.assert_called_once_with(
+        db=db,
+        state=mark_failed.call_args.kwargs["state"],
+        error="database unavailable",
+    )
 
 
 def test_main_runs_one_shot_worker() -> None:
