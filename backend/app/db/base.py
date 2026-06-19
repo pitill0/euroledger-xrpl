@@ -1,3 +1,15 @@
-from app.models import Base, PaymentIntent, WorkerState
+from app.models import (
+    Base,
+    MerchantWebhookEndpoint,
+    PaymentIntent,
+    WebhookDelivery,
+    WorkerState,
+)
 
-__all__ = ["Base", "PaymentIntent", "WorkerState"]
+__all__ = [
+    "Base",
+    "MerchantWebhookEndpoint",
+    "PaymentIntent",
+    "WebhookDelivery",
+    "WorkerState",
+]

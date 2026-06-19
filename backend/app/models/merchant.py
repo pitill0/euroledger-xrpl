@@ -16,6 +16,7 @@ from app.models.payment_intent import Base
 
 if TYPE_CHECKING:
     from app.models.payment_intent import PaymentIntent
+    from app.models.webhook import MerchantWebhookEndpoint
 
 
 class Merchant(Base):
@@ -64,6 +65,11 @@ class Merchant(Base):
     )
 
     api_keys: Mapped[list["MerchantApiKey"]] = relationship(
+        back_populates="merchant",
+        cascade="all, delete-orphan",
+    )
+
+    webhook_endpoints: Mapped[list["MerchantWebhookEndpoint"]] = relationship(
         back_populates="merchant",
         cascade="all, delete-orphan",
     )
