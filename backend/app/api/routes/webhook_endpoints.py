@@ -16,8 +16,10 @@ from app.schemas.webhook import (
     WebhookEndpointCreate,
     WebhookEndpointListResponse,
     WebhookEndpointRead,
+    WebhookEndpointTestResponse,
     WebhookEndpointUpdate,
 )
+from app.services.webhook_endpoint_tests import send_webhook_endpoint_test
 
 router = APIRouter(
     prefix="/webhook-endpoints",
@@ -64,6 +66,32 @@ def list_webhook_endpoints_endpoint(
 
     return WebhookEndpointListResponse(
         items=[WebhookEndpointRead.model_validate(endpoint) for endpoint in endpoints],
+    )
+
+
+@router.post(
+    "/{endpoint_id}/test",
+    response_model=WebhookEndpointTestResponse,
+)
+def test_webhook_endpoint_endpoint(
+    endpoint_id: str,
+    db: DbSession,
+    merchant: CurrentMerchant,
+) -> WebhookEndpointTestResponse:
+    endpoint = get_webhook_endpoint_by_id(
+        db=db,
+        endpoint_id=endpoint_id,
+        merchant_id=merchant.id,
+    )
+
+    if endpoint is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Webhook endpoint not found",
+        )
+
+    return WebhookEndpointTestResponse.model_validate(
+        send_webhook_endpoint_test(endpoint),
     )
 
 

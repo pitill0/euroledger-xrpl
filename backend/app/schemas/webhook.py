@@ -71,6 +71,20 @@ class WebhookEndpointListResponse(BaseModel):
     items: list[WebhookEndpointRead]
 
 
+class WebhookEndpointTestResponse(BaseModel):
+    event_type: str
+    delivery_id: str
+    payload: dict[str, Any]
+    delivered: bool
+    response_status_code: int | None
+    response_body: str | None
+    error_message: str | None
+
+    model_config = {
+        "from_attributes": True,
+    }
+
+
 class WebhookDeliveryRead(BaseModel):
     id: str
     merchant_id: str

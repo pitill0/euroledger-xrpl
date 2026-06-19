@@ -40,6 +40,18 @@ curl -s http://localhost:8000/webhook-endpoints \
   | python -m json.tool
 ```
 
+Send a signed test event to an endpoint:
+
+```bash
+curl -s -X POST http://localhost:8000/webhook-endpoints/{endpoint_id}/test \
+  -H "X-API-Key: ${MERCHANT_API_KEY}" \
+  | python -m json.tool
+```
+
+The test event is sent immediately and is not stored as a webhook delivery. Use
+it to validate the receiver URL, signature verification and network reachability
+before triggering real payment intent events.
+
 Disable an endpoint:
 
 ```bash

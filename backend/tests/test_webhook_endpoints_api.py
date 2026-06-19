@@ -7,6 +7,7 @@ from app.api.dependencies.auth import get_current_merchant
 from app.db.session import get_db
 from app.main import app
 from app.models.webhook import MerchantWebhookEndpoint
+from app.services.webhook_endpoint_tests import WebhookEndpointTestResult
 
 NOW = datetime(
     2026,
@@ -165,6 +166,96 @@ def test_get_cross_merchant_webhook_endpoint_returns_not_found() -> None:
     assert response.json()["detail"] == "Webhook endpoint not found"
 
     assert get_repository.call_args.kwargs["merchant_id"] == MERCHANT_ID
+
+
+def test_test_webhook_endpoint_requires_api_key() -> None:
+    response = TestClient(app).post(
+        "/webhook-endpoints/endpoint-id/test",
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Missing API key."
+
+
+def test_test_webhook_endpoint_sends_signed_test_event() -> None:
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_merchant] = override_current_merchant
+
+    endpoint = build_webhook_endpoint()
+    test_result = WebhookEndpointTestResult(
+        event_type="webhook_endpoint.test",
+        delivery_id="test-delivery-id",
+        payload={
+            "type": "webhook_endpoint.test",
+            "merchant_id": MERCHANT_ID,
+        },
+        delivered=True,
+        response_status_code=204,
+        response_body="",
+        error_message=None,
+    )
+
+    try:
+        with (
+            patch(
+                "app.api.routes.webhook_endpoints.get_webhook_endpoint_by_id",
+                return_value=endpoint,
+            ) as get_repository,
+            patch(
+                "app.api.routes.webhook_endpoints.send_webhook_endpoint_test",
+                return_value=test_result,
+            ) as test_service,
+        ):
+            response = TestClient(app).post(
+                "/webhook-endpoints/endpoint-id/test",
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["event_type"] == "webhook_endpoint.test"
+    assert body["delivery_id"] == "test-delivery-id"
+    assert body["delivered"] is True
+    assert body["response_status_code"] == 204
+    assert body["response_body"] == ""
+    assert body["error_message"] is None
+
+    get_repository.assert_called_once_with(
+        db=get_repository.call_args.kwargs["db"],
+        endpoint_id="endpoint-id",
+        merchant_id=MERCHANT_ID,
+    )
+    test_service.assert_called_once_with(endpoint)
+
+
+def test_test_cross_merchant_webhook_endpoint_returns_not_found() -> None:
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_merchant] = override_current_merchant
+
+    try:
+        with (
+            patch(
+                "app.api.routes.webhook_endpoints.get_webhook_endpoint_by_id",
+                return_value=None,
+            ) as get_repository,
+            patch(
+                "app.api.routes.webhook_endpoints.send_webhook_endpoint_test",
+            ) as test_service,
+        ):
+            response = TestClient(app).post(
+                "/webhook-endpoints/other-merchant-endpoint/test",
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Webhook endpoint not found"
+
+    assert get_repository.call_args.kwargs["merchant_id"] == MERCHANT_ID
+    test_service.assert_not_called()
 
 
 def test_patch_webhook_endpoint_updates_allowed_fields() -> None:
