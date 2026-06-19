@@ -64,8 +64,8 @@
     {
       "parameters": {
         "mode": "expression",
-        "numberOutputs": 4,
-        "output": "={{ $json.component === 'backend' ? 0 : ($json.component === 'xrpl-worker' ? 1 : ($json.component === 'payment-intent-expirer' ? 2 : 3)) }}"
+        "numberOutputs": 5,
+        "output": "={{ $json.component === 'backend' ? 0 : ($json.component === 'xrpl-worker' ? 1 : ($json.component === 'payment-intent-expirer' ? 2 : ($json.component === 'webhook-worker' ? 3 : 4))) }}"
       },
       "id": "218bf341-c8d5-4ec1-9407-1edcc89fc85e",
       "name": "Route by Component",
@@ -153,6 +153,30 @@
         "assignments": {
           "assignments": [
             {
+              "id": "b47f4a53",
+              "name": "route",
+              "value": "webhook-worker",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "b47f4a53-847c-4e90-bbc9-75b29d0ccaf2",
+      "name": "Webhook Worker Alert",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        80,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
               "id": "d3ee9839",
               "name": "route",
               "value": "other-component",
@@ -169,7 +193,7 @@
       "typeVersion": 3.4,
       "position": [
         80,
-        0
+        120
       ]
     },
     {
@@ -350,6 +374,13 @@
         ],
         [
           {
+            "node": "Webhook Worker Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Other Component",
             "type": "main",
             "index": 0
@@ -380,6 +411,17 @@
       ]
     },
     "Expirer Alert": {
+      "main": [
+        [
+          {
+            "node": "Format Telegram Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Worker Alert": {
       "main": [
         [
           {

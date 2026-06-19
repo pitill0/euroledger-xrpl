@@ -108,7 +108,7 @@ curl -i   -X POST   http://localhost:5678/webhook/euroledger-alerts   -H 'Conten
     "commonLabels": {
       "alertname": "ManualTelegramTest",
       "severity": "critical",
-      "component": "backend"
+      "component": "webhook-worker"
     },
     "commonAnnotations": {
       "summary": "Manual Telegram notification test",
@@ -120,7 +120,7 @@ curl -i   -X POST   http://localhost:5678/webhook/euroledger-alerts   -H 'Conten
         "labels": {
           "alertname": "ManualTelegramTest",
           "severity": "critical",
-          "component": "backend"
+          "component": "webhook-worker"
         },
         "annotations": {
           "summary": "Manual Telegram notification test"
@@ -149,6 +149,12 @@ docker compose start backend
 ```
 
 Telegram should later receive the resolved notification because Alertmanager uses `send_resolved: true`.
+
+Webhook worker alerts use the same Telegram format and arrive with:
+
+```text
+Component: webhook-worker
+```
 
 ## Credentials and Security
 

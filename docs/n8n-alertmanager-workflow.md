@@ -23,6 +23,7 @@ The workflow:
    - `backend`;
    - `xrpl-worker`;
    - `payment-intent-expirer`;
+   - `webhook-worker`;
    - other components.
 
 ## Import
@@ -57,7 +58,7 @@ curl -i   -X POST   http://localhost:5678/webhook/euroledger-alerts   -H 'Conten
     "commonLabels": {
       "alertname": "ManualWorkflowTest",
       "severity": "critical",
-      "component": "backend"
+      "component": "webhook-worker"
     },
     "commonAnnotations": {
       "summary": "Manual n8n workflow test"
@@ -68,7 +69,7 @@ curl -i   -X POST   http://localhost:5678/webhook/euroledger-alerts   -H 'Conten
         "labels": {
           "alertname": "ManualWorkflowTest",
           "severity": "critical",
-          "component": "backend"
+          "component": "webhook-worker"
         }
       }
     ]
