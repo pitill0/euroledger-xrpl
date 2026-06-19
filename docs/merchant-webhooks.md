@@ -171,6 +171,56 @@ The worker marks a delivery as:
 
 Retry delay uses exponential backoff capped at one hour.
 
+## Inspect Deliveries
+
+Webhook delivery records are scoped to the authenticated merchant API key.
+
+List recent deliveries:
+
+```bash
+curl -s http://localhost:8000/webhook-deliveries \
+  -H "X-API-Key: ${MERCHANT_API_KEY}" \
+  | python -m json.tool
+```
+
+Filter deliveries by status:
+
+```bash
+curl -s "http://localhost:8000/webhook-deliveries?status_filter=failed" \
+  -H "X-API-Key: ${MERCHANT_API_KEY}" \
+  | python -m json.tool
+```
+
+Read a single delivery:
+
+```bash
+curl -s http://localhost:8000/webhook-deliveries/{delivery_id} \
+  -H "X-API-Key: ${MERCHANT_API_KEY}" \
+  | python -m json.tool
+```
+
+Cross-merchant deliveries are hidden and return `404`.
+
+## Manual Retry
+
+Use manual retry when a delivery is `failed` or `discarded` and the merchant
+endpoint is ready to receive it again.
+
+```bash
+curl -s -X POST http://localhost:8000/webhook-deliveries/{delivery_id}/retry \
+  -H "X-API-Key: ${MERCHANT_API_KEY}" \
+  | python -m json.tool
+```
+
+Manual retry resets the delivery to:
+
+- `status: pending`;
+- `attempt_count: 0`;
+- `next_attempt_at: now`;
+- no stored response status, response body or error message.
+
+Already delivered webhook deliveries cannot be retried and return `409`.
+
 ## Observability
 
 Webhook worker metrics are exposed through `/metrics`:
@@ -197,7 +247,54 @@ For a local receiver, expose a small HTTP endpoint and use its URL when creating
 the webhook endpoint. Public webhook inspection services also work, but never
 use production secrets or real customer data with third-party inspection tools.
 
-After creating an endpoint, trigger a payment intent transition and run:
+To test the retry flow locally, create an endpoint pointing to a closed local
+port:
+
+```bash
+curl -s -X POST http://localhost:8000/webhook-endpoints \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: ${MERCHANT_API_KEY}" \
+  -d '{
+    "url": "http://127.0.0.1:9999/webhook",
+    "secret": "test-secret-123456789",
+    "enabled": true
+  }' \
+  | python -m json.tool
+```
+
+Create a payment intent:
+
+```bash
+PAYMENT_INTENT_ID=$(
+  curl -s -X POST http://localhost:8000/payment-intents \
+    -H "Content-Type: application/json" \
+    -H "X-API-Key: ${MERCHANT_API_KEY}" \
+    -H "Idempotency-Key: webhook-retry-test-$(date +%s)" \
+    -d '{
+      "amount": "10.00",
+      "currency": "EUR",
+      "description": "Manual webhook retry test",
+      "expires_in_seconds": 900
+    }' \
+    | tee /tmp/euroledger-payment-intent.json \
+    | python -c 'import json,sys; print(json.load(sys.stdin)["id"])'
+)
+
+python -m json.tool /tmp/euroledger-payment-intent.json
+```
+
+Trigger a real transition:
+
+```bash
+curl -s -X POST \
+  "http://localhost:8000/payment-intents/${PAYMENT_INTENT_ID}/cancel" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: ${MERCHANT_API_KEY}" \
+  -d '{"reason": "Manual webhook retry test"}' \
+  | python -m json.tool
+```
+
+Run the worker once. The closed port should make the delivery fail:
 
 ```bash
 docker compose exec backend \
@@ -205,4 +302,25 @@ docker compose exec backend \
   --limit 100 \
   --timeout 10 \
   --max-attempts 5
+```
+
+Capture the delivery id and retry it:
+
+```bash
+curl -s http://localhost:8000/webhook-deliveries \
+  -H "X-API-Key: ${MERCHANT_API_KEY}" \
+  | tee /tmp/euroledger-webhook-deliveries.json \
+  | python -m json.tool
+
+DELIVERY_ID=$(
+  python -c '
+import json
+
+print(json.load(open("/tmp/euroledger-webhook-deliveries.json"))["items"][0]["id"])
+'
+)
+
+curl -s -X POST "http://localhost:8000/webhook-deliveries/${DELIVERY_ID}/retry" \
+  -H "X-API-Key: ${MERCHANT_API_KEY}" \
+  | python -m json.tool
 ```
