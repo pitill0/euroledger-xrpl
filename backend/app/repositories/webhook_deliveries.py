@@ -42,3 +42,47 @@ def list_due_webhook_deliveries(
     )
 
     return list(db.execute(statement).scalars().all())
+
+
+def list_webhook_deliveries(
+    db: Session,
+    *,
+    merchant_id: str,
+    status: WebhookDeliveryStatus | None,
+    event_type: str | None,
+    payment_intent_id: str | None,
+    endpoint_id: str | None,
+    limit: int,
+) -> list[WebhookDelivery]:
+    statement = select(WebhookDelivery).where(WebhookDelivery.merchant_id == merchant_id)
+
+    if status is not None:
+        statement = statement.where(WebhookDelivery.status == status)
+
+    if event_type is not None:
+        statement = statement.where(WebhookDelivery.event_type == event_type)
+
+    if payment_intent_id is not None:
+        statement = statement.where(WebhookDelivery.payment_intent_id == payment_intent_id)
+
+    if endpoint_id is not None:
+        statement = statement.where(WebhookDelivery.endpoint_id == endpoint_id)
+
+    statement = statement.order_by(WebhookDelivery.created_at.desc(), WebhookDelivery.id.desc())
+    statement = statement.limit(limit)
+
+    return list(db.execute(statement).scalars().all())
+
+
+def get_webhook_delivery_by_id(
+    db: Session,
+    delivery_id: str,
+    *,
+    merchant_id: str,
+) -> WebhookDelivery | None:
+    statement = select(WebhookDelivery).where(
+        WebhookDelivery.id == delivery_id,
+        WebhookDelivery.merchant_id == merchant_id,
+    )
+
+    return db.execute(statement).scalar_one_or_none()

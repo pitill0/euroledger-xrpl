@@ -1,6 +1,9 @@
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
+
+from app.models.webhook import WebhookDeliveryStatus
 
 
 def validate_webhook_url(value: str) -> str:
@@ -66,3 +69,29 @@ class WebhookEndpointRead(BaseModel):
 
 class WebhookEndpointListResponse(BaseModel):
     items: list[WebhookEndpointRead]
+
+
+class WebhookDeliveryRead(BaseModel):
+    id: str
+    merchant_id: str
+    endpoint_id: str | None
+    event_type: str
+    payment_intent_id: str
+    payload: dict[str, Any]
+    status: WebhookDeliveryStatus
+    attempt_count: int
+    next_attempt_at: datetime | None
+    last_attempt_at: datetime | None
+    response_status_code: int | None
+    response_body: str | None
+    error_message: str | None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {
+        "from_attributes": True,
+    }
+
+
+class WebhookDeliveryListResponse(BaseModel):
+    items: list[WebhookDeliveryRead]
