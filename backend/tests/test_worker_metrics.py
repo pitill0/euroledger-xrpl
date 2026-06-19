@@ -155,7 +155,11 @@ def test_metrics_endpoint() -> None:
     assert response.status_code == 200
 
     assert response.text == (
-        "xrpl_metric 1\nexpiration_metric 1\nwebhook_metric 1\nstate_metric 1\napi_metric 1\n"
+        "xrpl_metric 1\n"
+        "expiration_metric 1\n"
+        "webhook_metric 1\n"
+        "state_metric 1\n"
+        "api_metric 1\n"
     )
 
     generate_xrpl_metrics.assert_called_once_with(

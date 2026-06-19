@@ -75,6 +75,33 @@ services:
       - postgres
     restart: unless-stopped
 
+  webhook-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: euroledger-webhook-worker
+    command:
+      - webhook-worker
+      - --limit
+      - "${WEBHOOK_WORKER_LIMIT:-100}"
+      - --timeout
+      - "${WEBHOOK_WORKER_TIMEOUT:-10}"
+      - --max-attempts
+      - "${WEBHOOK_WORKER_MAX_ATTEMPTS:-5}"
+      - --poll-interval
+      - "${WEBHOOK_WORKER_POLL_INTERVAL:-30}"
+    env_file:
+      - .env
+    volumes:
+      - ./backend/app:/app/app
+      - ./backend/tests:/app/tests
+      - ./backend/alembic:/app/alembic
+      - ./backend/alembic.ini:/app/alembic.ini
+      - ./backend/fixtures:/app/fixtures
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
   postgres:
     image: postgres:16-alpine
     container_name: euroledger-xrpl-postgres
