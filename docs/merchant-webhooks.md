@@ -144,6 +144,9 @@ def verify_signature(
 Receivers should reject requests with missing signatures. A production receiver
 should also reject old timestamps to reduce replay risk.
 
+Receiver examples for FastAPI, Flask and Node.js are available in
+[`webhook-receiver-examples.md`](webhook-receiver-examples.md).
+
 ## Example Payload
 
 ```json

@@ -104,6 +104,7 @@ See:
 
 ```text
 ../docs/merchant-webhooks.md
+../docs/webhook-receiver-examples.md
 ```
 
 ## XRPL Worker
