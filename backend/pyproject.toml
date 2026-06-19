@@ -35,6 +35,7 @@ dev = [
 xrpl-worker = "app.commands.xrpl_worker:main"
 payment-intent-expirer = "app.commands.payment_intent_expirer:main"
 merchant-admin = "app.commands.merchant_admin:main"
+webhook-worker = "app.commands.webhook_worker:main"
 
 [tool.setuptools.packages.find]
 include = ["app*"]
