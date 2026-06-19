@@ -105,6 +105,7 @@ See:
 ```text
 ../docs/merchant-webhooks.md
 ../docs/webhook-receiver-examples.md
+../examples/webhook_receiver_stdlib.py
 ```
 
 ## XRPL Worker

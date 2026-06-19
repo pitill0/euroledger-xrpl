@@ -3,6 +3,9 @@
 These examples show how a merchant can receive EuroLedger XRPL webhook events
 and verify the `X-EuroLedger-Signature` HMAC header.
 
+For manual local testing without extra dependencies, use the stdlib receiver in
+[`../examples/webhook_receiver_stdlib.py`](../examples/webhook_receiver_stdlib.py).
+
 The same verification rules apply to real payment intent events and to
 `webhook_endpoint.test` events sent through:
 

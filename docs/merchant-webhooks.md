@@ -52,6 +52,25 @@ The test event is sent immediately and is not stored as a webhook delivery. Use
 it to validate the receiver URL, signature verification and network reachability
 before triggering real payment intent events.
 
+For local testing, this repository includes a stdlib-only receiver:
+
+```bash
+EUROLEDGER_WEBHOOK_SECRET="replace-with-a-long-random-secret" \
+  python examples/webhook_receiver_stdlib.py \
+  --host 0.0.0.0 \
+  --port 9999
+```
+
+If the backend runs inside Compose, do not configure the webhook endpoint with
+`127.0.0.1` unless the receiver also runs inside the same container. From a
+container, `127.0.0.1` points back to that container. Use the host alias exposed
+by your runtime, for example:
+
+```text
+http://host.containers.internal:9999/webhook
+http://host.docker.internal:9999/webhook
+```
+
 Disable an endpoint:
 
 ```bash
