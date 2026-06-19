@@ -96,6 +96,61 @@ groups:
           summary: Payment intent expirer has no recent successful cycle
           description: The latest successful payment intent expiration cycle is more than five minutes old.
 
+  - name: euroledger-webhook-worker
+    interval: 30s
+    rules:
+      - alert: EuroLedgerWebhookWorkerDegraded
+        expr: euroledger_webhook_delivery_worker_health{status="degraded"} == 1
+        for: 2m
+        labels:
+          severity: warning
+          component: webhook-worker
+        annotations:
+          summary: Webhook worker is degraded
+          description: >-
+            The latest webhook delivery worker cycle failed and no newer
+            successful cycle has recovered the service.
+
+      - alert: EuroLedgerWebhookWorkerStale
+        expr: euroledger_webhook_delivery_worker_health{status="stale"} == 1
+        for: 2m
+        labels:
+          severity: critical
+          component: webhook-worker
+        annotations:
+          summary: Webhook worker state is stale
+          description: >-
+            The webhook delivery worker has not completed a successful cycle
+            within the configured freshness threshold.
+
+      - alert: EuroLedgerWebhookWorkerFailureDetected
+        expr: increase(euroledger_webhook_delivery_worker_cycles_total{result="failed"}[10m]) > 0
+        labels:
+          severity: warning
+          component: webhook-worker
+        annotations:
+          summary: Webhook worker failure detected
+          description: At least one webhook delivery worker cycle failed during the last ten minutes.
+
+      - alert: EuroLedgerWebhookWorkerNoRecentSuccess
+        expr: euroledger_webhook_delivery_worker_last_success_age_seconds > 300
+        for: 2m
+        labels:
+          severity: critical
+          component: webhook-worker
+        annotations:
+          summary: Webhook worker has no recent successful cycle
+          description: The latest successful webhook delivery worker cycle is more than five minutes old.
+
+      - alert: EuroLedgerWebhookDeliveriesDiscarded
+        expr: increase(euroledger_webhook_deliveries_total{result="discarded"}[10m]) > 0
+        labels:
+          severity: warning
+          component: webhook-worker
+        annotations:
+          summary: Webhook deliveries discarded
+          description: One or more webhook deliveries were discarded during the last ten minutes.
+
   - name: euroledger-payment-intent-state
     interval: 30s
     rules:

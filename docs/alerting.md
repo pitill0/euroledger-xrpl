@@ -1,6 +1,7 @@
 # Prometheus Alerting
 
-EuroLedger XRPL includes Prometheus alerting rules for the API, XRPL worker and payment intent expiration service.
+EuroLedger XRPL includes Prometheus alerting rules for the API, XRPL worker,
+payment intent expiration service and webhook delivery worker.
 
 This stage evaluates and displays alerts locally. It does not send notifications. Alertmanager and external delivery channels are intentionally deferred to a later block.
 
@@ -38,6 +39,14 @@ rule_files:
 - `EuroLedgerPaymentIntentExpirerStale`
 - `EuroLedgerPaymentIntentExpirerFailureDetected`
 - `EuroLedgerPaymentIntentExpirerNoRecentSuccess`
+
+### Webhook Worker
+
+- `EuroLedgerWebhookWorkerDegraded`
+- `EuroLedgerWebhookWorkerStale`
+- `EuroLedgerWebhookWorkerFailureDetected`
+- `EuroLedgerWebhookWorkerNoRecentSuccess`
+- `EuroLedgerWebhookDeliveriesDiscarded`
 
 ## Validation
 
@@ -112,10 +121,16 @@ Payment intent expirer stale:
 docker compose stop payment-intent-expirer
 ```
 
+Webhook worker stale:
+
+```bash
+docker compose stop webhook-worker
+```
+
 Restart each service after testing:
 
 ```bash
-docker compose start backend xrpl-worker payment-intent-expirer
+docker compose start backend xrpl-worker payment-intent-expirer webhook-worker
 ```
 
 ## Alert States
