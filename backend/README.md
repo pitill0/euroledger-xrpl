@@ -7,6 +7,8 @@ The backend currently provides:
 - payment intent creation and lookup;
 - EuroLedger payment reference generation;
 - payment intent lifecycle management;
+- merchant webhook endpoint management;
+- webhook delivery worker support;
 - XRPL Testnet transaction retrieval;
 - XRPL payment validation and confirmation;
 - incremental account synchronization;
@@ -91,6 +93,17 @@ Apply all pending migrations:
 
 ```bash
 docker compose exec backend alembic upgrade head
+```
+
+## Merchant Webhooks
+
+Merchants can configure webhook endpoints to receive notifications when payment
+intents are confirmed, expired or cancelled.
+
+See:
+
+```text
+../docs/merchant-webhooks.md
 ```
 
 ## XRPL Worker
