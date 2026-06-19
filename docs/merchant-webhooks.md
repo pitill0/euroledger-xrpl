@@ -166,6 +166,9 @@ should also reject old timestamps to reduce replay risk.
 Receiver examples for FastAPI, Flask and Node.js are available in
 [`webhook-receiver-examples.md`](webhook-receiver-examples.md).
 
+For an end-to-end operational checklist, see
+[`merchant-webhook-operations.md`](merchant-webhook-operations.md).
+
 ## Example Payload
 
 ```json
