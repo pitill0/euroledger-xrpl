@@ -16,6 +16,9 @@ services:
       - ../euroledger-xrpl-gateway:/var/www/html/wp-content/plugins/euroledger-xrpl-gateway
     depends_on:
       - db
+    networks:
+      - default
+      - euroledger_backend
 
   db:
     image: ${MARIADB_IMAGE:-mariadb:11.4}
@@ -45,7 +48,16 @@ services:
     depends_on:
       - db
       - wordpress
+    networks:
+      - default
+      - euroledger_backend
 
 volumes:
   wordpress_data:
   db_data:
+
+networks:
+  default:
+  euroledger_backend:
+    external: true
+    name: euroledger-xrpl_default
