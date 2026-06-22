@@ -3,7 +3,8 @@
 Experimental WooCommerce payment gateway for EuroLedger XRPL.
 
 The gateway can create backend payment intents during checkout in a local or
-testnet environment. It does not confirm orders automatically yet.
+testnet environment and receive signed backend webhooks that move confirmed
+WooCommerce orders to processing.
 
 ## Current Scope
 
@@ -80,12 +81,6 @@ When a customer selects EuroLedger XRPL at checkout, the plugin:
 4. sets the order status to `on-hold`;
 5. redirects to the order received page with basic payment instructions.
 
-## Next Integration Block
-
-The next block should add backend-to-WordPress confirmation handling so orders
-can move from `on-hold` to `processing` or `completed` after the XRPL payment is
-confirmed.
-
 ## Webhook Receiver
 
 The plugin exposes a signed webhook receiver at:
@@ -110,14 +105,17 @@ order from `on-hold` to `processing`. Repeated confirmed webhooks are idempotent
 metadata is refreshed and the order status is left unchanged when it is already
 processing or completed.
 
-Create the backend endpoint from the host with a merchant API key:
+Create the backend endpoint from the host with a merchant API key. In the local
+WooCommerce dev environment, prefer the `rest_route` URL because it avoids
+WordPress canonical redirects that can turn signed webhook calls into HTML
+responses:
 
 ```bash
 curl -s -X POST http://localhost:8000/webhook-endpoints \
   -H "X-API-Key: ${MERCHANT_API_KEY}" \
   -H "Content-Type: application/json" \
   -d '{
-    "url": "http://euroledger-wp-dev/wp-json/euroledger-xrpl/v1/webhook",
+    "url": "http://euroledger-wp-dev/?rest_route=/euroledger-xrpl/v1/webhook",
     "secret": "test-secret-123456789",
     "enabled": true
   }' | python -m json.tool
@@ -131,4 +129,14 @@ sudo docker compose exec backend python -m app.commands.webhook_worker \
   --limit 100 \
   --timeout 10 \
   --max-attempts 5
+```
+
+A manual worker run can report `processed=0` when the automatic worker service
+has already delivered the pending webhook. Check `/webhook-deliveries` for the
+authoritative delivery status.
+
+For the full local E2E procedure, see:
+
+```text
+../../docs/woocommerce-webhook-dev-flow.md
 ```

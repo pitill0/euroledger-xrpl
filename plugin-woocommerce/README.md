@@ -26,3 +26,16 @@ The experimental gateway can check backend connectivity, create backend payment
 intents during checkout and keep WooCommerce orders on hold while payment
 confirmation is still pending. It can also receive signed backend webhooks to
 move confirmed orders to processing.
+
+## Webhook Dev Flow
+
+The local end-to-end webhook flow is documented in:
+
+```text
+../docs/woocommerce-webhook-dev-flow.md
+```
+
+That guide covers the classic checkout requirement, the backend and WordPress
+container URLs, the local `rest_route` webhook URL, payment intent confirmation,
+delivery inspection and the case where the automatic webhook worker processes a
+delivery before a manual worker run.

@@ -80,13 +80,37 @@ http://localhost:8088/wp-admin/admin.php?page=wc-settings&tab=checkout&section=e
 ## Connect to the Backend
 
 When WordPress runs inside a container, `localhost` points to the WordPress
-container itself. Use one of these API base URLs for a backend running on the
-host:
+container itself. This compose project connects WordPress and WP-CLI to the
+backend compose network, so the recommended gateway API base URL for local
+EuroLedger development is:
+
+```text
+http://euroledger-xrpl-backend:8000
+```
+
+The backend can reach the WordPress dev container at:
+
+```text
+http://euroledger-wp-dev
+```
+
+For local webhook tests, create backend webhook endpoints with the WordPress
+`rest_route` URL to avoid canonical redirects:
+
+```text
+http://euroledger-wp-dev/?rest_route=/euroledger-xrpl/v1/webhook
+```
+
+The host fallback URLs below can still be useful for isolated compatibility
+tests where the WordPress container is not connected to the backend network:
 
 ```text
 http://host.containers.internal:8000
 http://host.docker.internal:8000
 ```
+
+See `../../docs/woocommerce-webhook-dev-flow.md` for the full checkout, payment
+intent confirmation and webhook delivery procedure.
 
 ## Stop and Reset
 
