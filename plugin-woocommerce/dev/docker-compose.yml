@@ -1,0 +1,61 @@
+services:
+  wordpress:
+    image: wordpress:6.6-php8.2-apache
+    restart: unless-stopped
+    ports:
+      - "${WORDPRESS_PORT:-8088}:80"
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: ${WORDPRESS_DB_USER:-euroledger_wp}
+      WORDPRESS_DB_PASSWORD: ${WORDPRESS_DB_PASSWORD:-euroledger_wp_password}
+      WORDPRESS_DB_NAME: ${WORDPRESS_DB_NAME:-euroledger_wp}
+      WORDPRESS_DEBUG: ${WORDPRESS_DEBUG:-1}
+    volumes:
+      - wordpress_data:/var/www/html
+      - ../euroledger-xrpl-gateway:/var/www/html/wp-content/plugins/euroledger-xrpl-gateway
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${WORDPRESS_DB_NAME:-euroledger_wp}
+      MARIADB_USER: ${WORDPRESS_DB_USER:-euroledger_wp}
+      MARIADB_PASSWORD: ${WORDPRESS_DB_PASSWORD:-euroledger_wp_password}
+      MARIADB_ROOT_PASSWORD: ${WORDPRESS_DB_ROOT_PASSWORD:-euroledger_wp_root_password}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test:
+        - CMD
+        - healthcheck.sh
+        - --connect
+        - --innodb_initialized
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  wp-cli:
+    image: wordpress:cli-php8.2
+    profiles:
+      - tools
+    user: "33:33"
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: ${WORDPRESS_DB_USER:-euroledger_wp}
+      WORDPRESS_DB_PASSWORD: ${WORDPRESS_DB_PASSWORD:-euroledger_wp_password}
+      WORDPRESS_DB_NAME: ${WORDPRESS_DB_NAME:-euroledger_wp}
+    volumes:
+      - wordpress_data:/var/www/html
+      - ../euroledger-xrpl-gateway:/var/www/html/wp-content/plugins/euroledger-xrpl-gateway
+    depends_on:
+      db:
+        condition: service_healthy
+      wordpress:
+        condition: service_started
+
+volumes:
+  wordpress_data:
+  db_data:
