@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 from sqlalchemy.orm import Session
@@ -52,6 +53,20 @@ def truncate_response_body(
     return body[:MAX_RESPONSE_BODY_LENGTH]
 
 
+def validate_webhook_delivery_url(
+    url: str,
+) -> str:
+    parsed_url = urlsplit(url)
+
+    if parsed_url.scheme not in {"http", "https"}:
+        raise ValueError("Webhook URL must use http or https.")
+
+    if not parsed_url.netloc:
+        raise ValueError("Webhook URL must include a host.")
+
+    return url
+
+
 def post_webhook(
     *,
     url: str,
@@ -60,14 +75,15 @@ def post_webhook(
     timeout: float,
 ) -> WebhookHttpResponse:
     request = Request(
-        url=url,
+        url=validate_webhook_delivery_url(url),
         data=raw_body,
         headers=headers,
         method="POST",
     )
 
     try:
-        with urlopen(
+        # URL scheme is validated above.
+        with urlopen(  # nosec B310
             request,
             timeout=timeout,
         ) as response:

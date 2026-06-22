@@ -1,6 +1,8 @@
 from datetime import UTC, datetime, timedelta
 from unittest.mock import Mock, patch
 
+import pytest
+
 from app.models.webhook import (
     MerchantWebhookEndpoint,
     WebhookDelivery,
@@ -11,6 +13,7 @@ from app.services.webhook_delivery import (
     calculate_next_attempt_at,
     deliver_webhook,
     process_due_webhook_deliveries,
+    validate_webhook_delivery_url,
 )
 
 NOW = datetime(
@@ -64,6 +67,33 @@ def build_delivery(
         created_at=NOW,
         updated_at=NOW,
     )
+
+
+def test_validate_webhook_delivery_url_accepts_http_and_https() -> None:
+    assert (
+        validate_webhook_delivery_url("https://merchant.example.com/webhooks")
+        == "https://merchant.example.com/webhooks"
+    )
+    assert (
+        validate_webhook_delivery_url("http://merchant.example.com/webhooks")
+        == "http://merchant.example.com/webhooks"
+    )
+
+
+def test_validate_webhook_delivery_url_rejects_unsafe_schemes() -> None:
+    with pytest.raises(
+        ValueError,
+        match="http or https",
+    ):
+        validate_webhook_delivery_url("file:///etc/passwd")
+
+
+def test_validate_webhook_delivery_url_requires_host() -> None:
+    with pytest.raises(
+        ValueError,
+        match="include a host",
+    ):
+        validate_webhook_delivery_url("https:///missing-host")
 
 
 def test_calculate_next_attempt_at_uses_exponential_backoff() -> None:
