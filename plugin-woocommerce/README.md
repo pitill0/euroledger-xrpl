@@ -24,4 +24,5 @@ sudo docker compose up -d
 
 The experimental gateway can check backend connectivity, create backend payment
 intents during checkout and keep WooCommerce orders on hold while payment
-confirmation is still pending.
+confirmation is still pending. It can also receive signed backend webhooks to
+move confirmed orders to processing.

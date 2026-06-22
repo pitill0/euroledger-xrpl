@@ -128,6 +128,17 @@ class WC_Gateway_EuroLedger_XRPL extends WC_Payment_Gateway {
 				),
 				'desc_tip'    => true,
 			),
+
+			'webhook_secret'  => array(
+				'title'       => __( 'Webhook secret', 'euroledger-xrpl-gateway' ),
+				'type'        => 'password',
+				'default'     => '',
+				'description' => __(
+					'Secret used to verify signed EuroLedger webhook deliveries sent to WordPress.',
+					'euroledger-xrpl-gateway'
+				),
+				'desc_tip'    => true,
+			),
 			'test_mode'        => array(
 				'title'       => __( 'Test mode', 'euroledger-xrpl-gateway' ),
 				'type'        => 'checkbox',

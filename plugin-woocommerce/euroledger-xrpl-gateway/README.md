@@ -15,13 +15,15 @@ testnet environment. It does not confirm orders automatically yet.
   - EuroLedger backend API base URL;
   - merchant API key;
   - test mode;
-  - debug logging.
+  - debug logging;
+  - webhook secret.
 - Keeps the gateway disabled by default.
 - Provides an admin-only backend connection check.
 - Creates backend payment intents during checkout.
 - Stores payment intent id, reference and status on the WooCommerce order.
 - Leaves the order `on-hold` until an external confirmation flow is added.
 - Shows basic payment instructions on the order received page.
+- Receives signed EuroLedger webhooks and moves confirmed orders to `processing`.
 
 ## Install Locally
 
@@ -52,6 +54,7 @@ Set:
 ```text
 API base URL: http://localhost:8000
 Merchant API key: <merchant-api-key>
+Webhook secret: <shared-webhook-secret>
 Test mode: enabled
 ```
 
@@ -60,9 +63,8 @@ Use **Check backend connection** to verify:
 1. the backend responds to `GET /health`;
 2. the configured merchant API key is accepted by `GET /auth/me`.
 
-Only enable the gateway in local/test environments. Real checkout still needs
-payment confirmation from EuroLedger webhooks before orders can be marked as
-paid.
+Only enable the gateway in local/test environments. Use the webhook secret when
+creating the backend webhook endpoint for this WordPress site.
 
 ## Checkout Flow
 
@@ -83,3 +85,50 @@ When a customer selects EuroLedger XRPL at checkout, the plugin:
 The next block should add backend-to-WordPress confirmation handling so orders
 can move from `on-hold` to `processing` or `completed` after the XRPL payment is
 confirmed.
+
+## Webhook Receiver
+
+The plugin exposes a signed webhook receiver at:
+
+```text
+/wp-json/euroledger-xrpl/v1/webhook
+```
+
+Configure a backend merchant webhook endpoint with that URL and the same
+**Webhook secret** configured in the gateway settings. In the local Compose
+environment, when WordPress is connected to the backend network, the backend can
+usually reach WordPress at:
+
+```text
+http://euroledger-wp-dev/wp-json/euroledger-xrpl/v1/webhook
+```
+
+The receiver verifies the EuroLedger HMAC headers and handles
+`payment_intent.confirmed` events. It finds the WooCommerce order by
+`_euroledger_payment_intent_id`, stores the latest webhook metadata and moves the
+order from `on-hold` to `processing`. Repeated confirmed webhooks are idempotent:
+metadata is refreshed and the order status is left unchanged when it is already
+processing or completed.
+
+Create the backend endpoint from the host with a merchant API key:
+
+```bash
+curl -s -X POST http://localhost:8000/webhook-endpoints \
+  -H "X-API-Key: ${MERCHANT_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "http://euroledger-wp-dev/wp-json/euroledger-xrpl/v1/webhook",
+    "secret": "test-secret-123456789",
+    "enabled": true
+  }' | python -m json.tool
+```
+
+After a backend payment intent is confirmed, run the webhook worker or let the
+Compose service process the delivery:
+
+```bash
+sudo docker compose exec backend python -m app.commands.webhook_worker \
+  --limit 100 \
+  --timeout 10 \
+  --max-attempts 5
+```
