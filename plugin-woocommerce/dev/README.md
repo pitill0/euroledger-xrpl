@@ -1,12 +1,18 @@
-# Local WooCommerce Development Environment
+# Local WooCommerce Dev Environment
 
-This directory provides an isolated WordPress/WooCommerce environment for testing the EuroLedger XRPL gateway plugin without touching production.
+This environment is only for local EuroLedger XRPL gateway development. It must
+not be connected to a production WordPress installation.
 
-## Start WordPress
+The compose file intentionally uses recent WordPress and WP-CLI images by
+default so that the latest WooCommerce plugin can be installed from wp.org.
+Override the images through environment variables if a compatibility test needs
+an older WordPress version.
+
+## Start
 
 ```bash
 cd plugin-woocommerce/dev
-docker compose up -d
+sudo docker compose up -d
 ```
 
 Open:
@@ -15,20 +21,24 @@ Open:
 http://localhost:8088
 ```
 
-The plugin source is mounted from the repository into WordPress:
+## Validate the Database
 
-```text
-/wp-content/plugins/euroledger-xrpl-gateway
-```
-
-Changes made in `plugin-woocommerce/euroledger-xrpl-gateway/` are visible inside the WordPress container after a page refresh.
-
-## Install WordPress and WooCommerce with WP-CLI
-
-After the containers are up, install WordPress:
+MariaDB may need a few seconds before WordPress can connect. Check it explicitly:
 
 ```bash
-docker compose --profile tools run --rm wp-cli wp core install \
+sudo docker compose --profile tools run --rm wp-cli wp db check
+```
+
+Expected output:
+
+```text
+Success: Database checked.
+```
+
+## Install WordPress
+
+```bash
+sudo docker compose --profile tools run --rm wp-cli wp core install \
   --url="http://localhost:8088" \
   --title="EuroLedger WooCommerce Dev" \
   --admin_user="admin" \
@@ -37,16 +47,28 @@ docker compose --profile tools run --rm wp-cli wp core install \
   --skip-email
 ```
 
-Install and activate WooCommerce:
+## Install WooCommerce
 
 ```bash
-docker compose --profile tools run --rm wp-cli wp plugin install woocommerce --activate
+sudo docker compose --profile tools run --rm wp-cli wp plugin install \
+  woocommerce \
+  --activate
 ```
 
-Activate the EuroLedger XRPL gateway:
+If this reports that WooCommerce requires a newer WordPress version, refresh the
+containers with the default latest images:
 
 ```bash
-docker compose --profile tools run --rm wp-cli wp plugin activate euroledger-xrpl-gateway
+sudo docker compose down -v
+sudo docker compose pull
+sudo docker compose up -d
+```
+
+## Activate EuroLedger XRPL Gateway
+
+```bash
+sudo docker compose --profile tools run --rm wp-cli wp plugin activate \
+  euroledger-xrpl-gateway
 ```
 
 Then open:
@@ -55,33 +77,27 @@ Then open:
 http://localhost:8088/wp-admin/admin.php?page=wc-settings&tab=checkout&section=euroledger_xrpl
 ```
 
-Login credentials for the local environment:
+## Connect to the Backend
 
-```text
-Username: admin
-Password: admin
-```
-
-These credentials are only for the local disposable environment.
-
-## Connect to the local EuroLedger backend
-
-If the EuroLedger backend is running from the repository root with Docker Compose, the WordPress container must reach it through the container host, not `localhost`.
-
-Use one of these API base URLs in the gateway settings, depending on your container runtime:
+When WordPress runs inside a container, `localhost` points to the WordPress
+container itself. Use one of these API base URLs for a backend running on the
+host:
 
 ```text
 http://host.containers.internal:8000
 http://host.docker.internal:8000
 ```
 
-Do not use `http://localhost:8000` from inside WordPress unless the backend is running in the same container.
+## Stop and Reset
 
-## Reset the environment
-
-To remove local WordPress and database data:
+Stop without deleting data:
 
 ```bash
-cd plugin-woocommerce/dev
-docker compose down -v
+sudo docker compose down
+```
+
+Reset all WordPress and database data:
+
+```bash
+sudo docker compose down -v
 ```

@@ -1,6 +1,7 @@
 services:
   wordpress:
-    image: wordpress:6.6-php8.2-apache
+    image: ${WORDPRESS_IMAGE:-wordpress:latest}
+    container_name: euroledger-wp-dev
     restart: unless-stopped
     ports:
       - "${WORDPRESS_PORT:-8088}:80"
@@ -14,11 +15,11 @@ services:
       - wordpress_data:/var/www/html
       - ../euroledger-xrpl-gateway:/var/www/html/wp-content/plugins/euroledger-xrpl-gateway
     depends_on:
-      db:
-        condition: service_healthy
+      - db
 
   db:
-    image: mariadb:11.4
+    image: ${MARIADB_IMAGE:-mariadb:11.4}
+    container_name: euroledger-wp-db-dev
     restart: unless-stopped
     environment:
       MARIADB_DATABASE: ${WORDPRESS_DB_NAME:-euroledger_wp}
@@ -27,18 +28,9 @@ services:
       MARIADB_ROOT_PASSWORD: ${WORDPRESS_DB_ROOT_PASSWORD:-euroledger_wp_root_password}
     volumes:
       - db_data:/var/lib/mysql
-    healthcheck:
-      test:
-        - CMD
-        - healthcheck.sh
-        - --connect
-        - --innodb_initialized
-      interval: 10s
-      timeout: 5s
-      retries: 10
 
   wp-cli:
-    image: wordpress:cli-php8.2
+    image: ${WP_CLI_IMAGE:-wordpress:cli}
     profiles:
       - tools
     user: "33:33"
@@ -51,10 +43,8 @@ services:
       - wordpress_data:/var/www/html
       - ../euroledger-xrpl-gateway:/var/www/html/wp-content/plugins/euroledger-xrpl-gateway
     depends_on:
-      db:
-        condition: service_healthy
-      wordpress:
-        condition: service_started
+      - db
+      - wordpress
 
 volumes:
   wordpress_data:

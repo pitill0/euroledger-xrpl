@@ -11,10 +11,11 @@ euroledger-xrpl-gateway/
 The gateway is intentionally testnet-first and should not be used for real
 payments.
 
-Local WordPress/WooCommerce development environment:
+## Local Development
 
-```text
-dev/
+A local WordPress/WooCommerce environment is available in `dev/`.
+
+```bash
+cd plugin-woocommerce/dev
+sudo docker compose up -d
 ```
-
-See `dev/README.md` for isolated local testing instructions.
