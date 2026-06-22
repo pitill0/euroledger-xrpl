@@ -25,6 +25,7 @@ WooCommerce orders to processing.
 - Leaves the order `on-hold` until an external confirmation flow is added.
 - Shows basic payment instructions on the order received page.
 - Receives signed EuroLedger webhooks and moves confirmed orders to `processing`.
+- Shows EuroLedger payment metadata on the WooCommerce admin order screen.
 
 ## Install Locally
 
@@ -80,6 +81,15 @@ When a customer selects EuroLedger XRPL at checkout, the plugin:
    - `_euroledger_payment_intent_created_at`;
 4. sets the order status to `on-hold`;
 5. redirects to the order received page with basic payment instructions.
+
+## Admin Order Screen
+
+Orders with EuroLedger metadata show an **EuroLedger XRPL payment** panel in the
+WooCommerce order edit screen. The panel includes the payment intent id, payment
+reference, EuroLedger status, XRPL transaction hash and the latest webhook
+delivery metadata.
+
+This panel uses WooCommerce order metadata accessors and is compatible with HPOS.
 
 ## Webhook Receiver
 

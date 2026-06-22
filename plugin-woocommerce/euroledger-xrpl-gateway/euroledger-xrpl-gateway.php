@@ -56,11 +56,15 @@ function euroledger_xrpl_gateway_init(): void {
 	}
 
 	require_once EUROLEDGER_XRPL_GATEWAY_DIR . 'includes/class-euroledger-xrpl-api-client.php';
+	require_once EUROLEDGER_XRPL_GATEWAY_DIR . 'includes/class-euroledger-xrpl-admin-order-meta.php';
 	require_once EUROLEDGER_XRPL_GATEWAY_DIR . 'includes/class-euroledger-xrpl-webhook-receiver.php';
 	require_once EUROLEDGER_XRPL_GATEWAY_DIR . 'includes/class-euroledger-xrpl-gateway.php';
 
 	$webhook_receiver = new EuroLedger_XRPL_Webhook_Receiver();
 	$webhook_receiver->register();
+
+	$admin_order_meta = new EuroLedger_XRPL_Admin_Order_Meta();
+	$admin_order_meta->register();
 }
 add_action( 'plugins_loaded', 'euroledger_xrpl_gateway_init', 11 );
 

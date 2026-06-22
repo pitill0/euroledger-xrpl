@@ -39,3 +39,8 @@ That guide covers the classic checkout requirement, the backend and WordPress
 container URLs, the local `rest_route` webhook URL, payment intent confirmation,
 delivery inspection and the case where the automatic webhook worker processes a
 delivery before a manual worker run.
+
+## Admin order metadata
+
+The gateway displays EuroLedger payment intent and webhook metadata on
+WooCommerce order edit screens for orders paid with EuroLedger XRPL.
