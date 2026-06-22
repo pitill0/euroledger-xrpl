@@ -18,6 +18,7 @@ settings. It does not create backend payment intents during checkout yet.
   - debug logging.
 - Keeps the gateway disabled by default.
 - Fails checkout explicitly until backend payment intent creation is added.
+- Provides an admin-only backend connection check.
 
 ## Install Locally
 
@@ -50,6 +51,11 @@ API base URL: http://localhost:8000
 Merchant API key: <merchant-api-key>
 Test mode: enabled
 ```
+
+Use **Check backend connection** to verify:
+
+1. the backend responds to `GET /health`;
+2. the configured merchant API key is accepted by `GET /auth/me`.
 
 Do not enable the gateway for real checkout until payment intent creation is
 implemented.
