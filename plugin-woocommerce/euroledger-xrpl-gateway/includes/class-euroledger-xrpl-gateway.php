@@ -64,6 +64,10 @@ class WC_Gateway_EuroLedger_XRPL extends WC_Payment_Gateway {
 			'woocommerce_update_options_payment_gateways_' . $this->id,
 			array( $this, 'process_admin_options' )
 		);
+		add_action(
+			'woocommerce_thankyou_' . $this->id,
+			array( $this, 'render_payment_instructions' )
+		);
 	}
 
 	/**
@@ -186,30 +190,204 @@ class WC_Gateway_EuroLedger_XRPL extends WC_Payment_Gateway {
 	/**
 	 * Process a checkout payment.
 	 *
-	 * Payment intent creation is intentionally deferred to the next block.
+	 * Creates a backend payment intent, stores its identifiers on the order and
+	 * keeps the order on hold until an external payment confirmation arrives.
 	 *
 	 * @param int $order_id WooCommerce order id.
 	 * @return array<string, string>
 	 */
 	public function process_payment( $order_id ) {
-		$this->log(
-			sprintf(
-				'Checkout attempted before backend integration. order_id=%d',
-				(int) $order_id
+		$order = wc_get_order( $order_id );
+
+		if ( ! $order instanceof WC_Order ) {
+			wc_add_notice(
+				__( 'Unable to load the WooCommerce order.', 'euroledger-xrpl-gateway' ),
+				'error'
+			);
+
+			return array(
+				'result' => 'failure',
+			);
+		}
+
+		$existing_intent_id = (string) $order->get_meta( '_euroledger_payment_intent_id' );
+
+		if ( '' !== $existing_intent_id ) {
+			$this->log(
+				sprintf(
+					'Reusing existing payment intent. order_id=%d payment_intent_id=%s',
+					(int) $order_id,
+					$existing_intent_id
+				)
+			);
+
+			return $this->payment_success_redirect( $order );
+		}
+
+		$client = new EuroLedger_XRPL_API_Client(
+			$this->api_base_url,
+			$this->merchant_api_key,
+			$this->debug_logging,
+			$this->id
+		);
+
+		$payload         = $this->build_payment_intent_payload( $order );
+		$idempotency_key = $this->build_payment_intent_idempotency_key( $order );
+		$result          = $client->create_payment_intent( $payload, $idempotency_key );
+
+		if ( ! $result['ok'] || ! is_array( $result['body'] ) ) {
+			$this->log(
+				sprintf(
+					'Payment intent creation failed. order_id=%d status=%s error=%s',
+					(int) $order_id,
+					(string) ( $result['status_code'] ?? 'n/a' ),
+					(string) ( $result['error'] ?? 'unknown' )
+				)
+			);
+
+			wc_add_notice(
+				__(
+					'EuroLedger XRPL could not create a payment intent. Please try again.',
+					'euroledger-xrpl-gateway'
+				),
+				'error'
+			);
+
+			return array(
+				'result' => 'failure',
+			);
+		}
+
+		$this->store_payment_intent_on_order( $order, $result['body'] );
+
+		$order->update_status(
+			'on-hold',
+			__(
+				'EuroLedger XRPL payment intent created. Awaiting external payment confirmation.',
+				'euroledger-xrpl-gateway'
 			)
 		);
+		$order->save();
 
-		wc_add_notice(
-			__(
-				'EuroLedger XRPL checkout integration is not available yet.',
-				'euroledger-xrpl-gateway'
-			),
-			'error'
-		);
+		WC()->cart->empty_cart();
 
+		return $this->payment_success_redirect( $order );
+	}
+
+	/**
+	 * Build backend payment intent payload from a WooCommerce order.
+	 *
+	 * @param WC_Order $order WooCommerce order.
+	 * @return array<string, mixed>
+	 */
+	private function build_payment_intent_payload( WC_Order $order ): array {
 		return array(
-			'result' => 'failure',
+			'amount'             => wc_format_decimal( $order->get_total(), 2 ),
+			'currency'           => $order->get_currency(),
+			'description'        => sprintf(
+				'WooCommerce order #%s',
+				$order->get_order_number()
+			),
+			'expires_in_seconds' => 900,
 		);
+	}
+
+	/**
+	 * Build a stable idempotency key for payment intent creation.
+	 *
+	 * @param WC_Order $order WooCommerce order.
+	 * @return string
+	 */
+	private function build_payment_intent_idempotency_key( WC_Order $order ): string {
+		return sprintf(
+			'woocommerce-order-%d-payment-intent',
+			$order->get_id()
+		);
+	}
+
+	/**
+	 * Store backend payment intent metadata on the WooCommerce order.
+	 *
+	 * @param WC_Order            $order WooCommerce order.
+	 * @param array<string, mixed> $payment_intent Payment intent response body.
+	 */
+	private function store_payment_intent_on_order(
+		WC_Order $order,
+		array $payment_intent
+	): void {
+		$order->update_meta_data(
+			'_euroledger_payment_intent_id',
+			sanitize_text_field( (string) ( $payment_intent['id'] ?? '' ) )
+		);
+		$order->update_meta_data(
+			'_euroledger_payment_intent_reference',
+			sanitize_text_field( (string) ( $payment_intent['reference'] ?? '' ) )
+		);
+		$order->update_meta_data(
+			'_euroledger_payment_intent_status',
+			sanitize_text_field( (string) ( $payment_intent['status'] ?? '' ) )
+		);
+		$order->update_meta_data(
+			'_euroledger_payment_intent_created_at',
+			sanitize_text_field( (string) ( $payment_intent['created_at'] ?? '' ) )
+		);
+	}
+
+	/**
+	 * Build the standard WooCommerce success redirect response.
+	 *
+	 * @param WC_Order $order WooCommerce order.
+	 * @return array<string, string>
+	 */
+	private function payment_success_redirect( WC_Order $order ): array {
+		return array(
+			'result'   => 'success',
+			'redirect' => $this->get_return_url( $order ),
+		);
+	}
+
+	/**
+	 * Render basic payment instructions on the order received page.
+	 *
+	 * @param int $order_id WooCommerce order id.
+	 */
+	public function render_payment_instructions( $order_id ): void {
+		$order = wc_get_order( $order_id );
+
+		if ( ! $order instanceof WC_Order ) {
+			return;
+		}
+
+		$reference = (string) $order->get_meta( '_euroledger_payment_intent_reference' );
+		$intent_id = (string) $order->get_meta( '_euroledger_payment_intent_id' );
+
+		if ( '' === $reference && '' === $intent_id ) {
+			return;
+		}
+
+		echo '<section class="woocommerce-order-details euroledger-xrpl-instructions">';
+		echo '<h2>' . esc_html__( 'EuroLedger XRPL payment', 'euroledger-xrpl-gateway' ) . '</h2>';
+		echo '<p>';
+		echo esc_html__(
+			'Your payment intent has been created. Send the XRPL payment using ' .
+			'this reference memo, then wait for confirmation.',
+			'euroledger-xrpl-gateway'
+		);
+		echo '</p>';
+
+		if ( '' !== $reference ) {
+			echo '<p><strong>';
+			echo esc_html__( 'Payment reference:', 'euroledger-xrpl-gateway' );
+			echo '</strong> <code>' . esc_html( $reference ) . '</code></p>';
+		}
+
+		if ( '' !== $intent_id ) {
+			echo '<p><strong>';
+			echo esc_html__( 'Payment intent id:', 'euroledger-xrpl-gateway' );
+			echo '</strong> <code>' . esc_html( $intent_id ) . '</code></p>';
+		}
+
+		echo '</section>';
 	}
 
 	/**

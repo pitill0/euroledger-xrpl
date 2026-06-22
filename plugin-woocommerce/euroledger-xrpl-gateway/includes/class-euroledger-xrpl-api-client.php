@@ -101,23 +101,72 @@ class EuroLedger_XRPL_API_Client {
 	}
 
 	/**
+	 * Create a backend payment intent.
+	 *
+	 * @param array<string, mixed> $payload Payment intent payload.
+	 * @param string              $idempotency_key Idempotency key.
+	 * @return array<string, mixed>
+	 */
+	public function create_payment_intent( array $payload, string $idempotency_key ): array {
+		$body = wp_json_encode( $payload );
+
+		if ( false === $body ) {
+			return array(
+				'ok'          => false,
+				'status_code' => null,
+				'body'        => null,
+				'error'       => __(
+					'Failed to encode payment intent payload.',
+					'euroledger-xrpl-gateway'
+				),
+			);
+		}
+
+		return $this->request(
+			'POST',
+			'/payment-intents',
+			true,
+			array(
+				'Content-Type'    => 'application/json',
+				'Idempotency-Key' => $idempotency_key,
+			),
+			$body
+		);
+	}
+
+	/**
 	 * Execute an HTTP request against the backend.
 	 *
 	 * @param string $method HTTP method.
 	 * @param string $path API path.
-	 * @param bool   $authenticated Whether to include the merchant API key.
+	 * @param bool                  $authenticated Whether to include the merchant API key.
+	 * @param array<string, string> $headers Additional request headers.
+	 * @param string|null           $body Request body.
 	 * @return array<string, mixed>
 	 */
-	private function request( string $method, string $path, bool $authenticated ): array {
+	private function request(
+		string $method,
+		string $path,
+		bool $authenticated,
+		array $headers = array(),
+		?string $body = null
+	): array {
 		$url = $this->api_base_url . $path;
 
 		$args = array(
 			'method'  => $method,
 			'timeout' => 10,
-			'headers' => array(
-				'Accept' => 'application/json',
+			'headers' => array_merge(
+				array(
+					'Accept' => 'application/json',
+				),
+				$headers
 			),
 		);
+
+		if ( null !== $body ) {
+			$args['body'] = $body;
+		}
 
 		if ( $authenticated ) {
 			$args['headers']['X-API-Key'] = $this->merchant_api_key;

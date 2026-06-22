@@ -19,3 +19,9 @@ A local WordPress/WooCommerce environment is available in `dev/`.
 cd plugin-woocommerce/dev
 sudo docker compose up -d
 ```
+
+## Current Gateway Capabilities
+
+The experimental gateway can check backend connectivity, create backend payment
+intents during checkout and keep WooCommerce orders on hold while payment
+confirmation is still pending.

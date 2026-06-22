@@ -2,8 +2,8 @@
 
 Experimental WooCommerce payment gateway for EuroLedger XRPL.
 
-This first block only provides the installable plugin skeleton and gateway
-settings. It does not create backend payment intents during checkout yet.
+The gateway can create backend payment intents during checkout in a local or
+testnet environment. It does not confirm orders automatically yet.
 
 ## Current Scope
 
@@ -17,8 +17,11 @@ settings. It does not create backend payment intents during checkout yet.
   - test mode;
   - debug logging.
 - Keeps the gateway disabled by default.
-- Fails checkout explicitly until backend payment intent creation is added.
 - Provides an admin-only backend connection check.
+- Creates backend payment intents during checkout.
+- Stores payment intent id, reference and status on the WooCommerce order.
+- Leaves the order `on-hold` until an external confirmation flow is added.
+- Shows basic payment instructions on the order received page.
 
 ## Install Locally
 
@@ -57,15 +60,26 @@ Use **Check backend connection** to verify:
 1. the backend responds to `GET /health`;
 2. the configured merchant API key is accepted by `GET /auth/me`.
 
-Do not enable the gateway for real checkout until payment intent creation is
-implemented.
+Only enable the gateway in local/test environments. Real checkout still needs
+payment confirmation from EuroLedger webhooks before orders can be marked as
+paid.
+
+## Checkout Flow
+
+When a customer selects EuroLedger XRPL at checkout, the plugin:
+
+1. creates `POST /payment-intents` in the backend;
+2. sends an `Idempotency-Key` based on the WooCommerce order id;
+3. stores these order metadata keys:
+   - `_euroledger_payment_intent_id`;
+   - `_euroledger_payment_intent_reference`;
+   - `_euroledger_payment_intent_status`;
+   - `_euroledger_payment_intent_created_at`;
+4. sets the order status to `on-hold`;
+5. redirects to the order received page with basic payment instructions.
 
 ## Next Integration Block
 
-The next block should:
-
-1. create a backend payment intent from the WooCommerce order;
-2. persist the payment intent id/reference in order metadata;
-3. redirect the customer to an order payment instructions page;
-4. keep the order in `pending` or `on-hold`;
-5. add tests or manual validation around duplicate checkout submission.
+The next block should add backend-to-WordPress confirmation handling so orders
+can move from `on-hold` to `processing` or `completed` after the XRPL payment is
+confirmed.
