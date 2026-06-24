@@ -20,6 +20,12 @@ class EuroLedger_XRPL_Admin_Order_Meta {
 	 */
 	public function register(): void {
 		add_action( 'add_meta_boxes', array( $this, 'register_order_meta_box' ) );
+
+		add_filter( 'manage_edit-shop_order_columns', array( $this, 'add_orders_list_column' ) );
+		add_action( 'manage_shop_order_posts_custom_column', array( $this, 'render_legacy_orders_list_column' ), 10, 2 );
+
+		add_filter( 'manage_woocommerce_page_wc-orders_columns', array( $this, 'add_orders_list_column' ) );
+		add_action( 'manage_woocommerce_page_wc-orders_custom_column', array( $this, 'render_hpos_orders_list_column' ), 10, 2 );
 	}
 
 	/**
@@ -42,6 +48,66 @@ class EuroLedger_XRPL_Admin_Order_Meta {
 				'high'
 			);
 		}
+	}
+
+
+	/**
+	 * Add a compact EuroLedger column to WooCommerce order lists.
+	 *
+	 * @param array<string, string> $columns Existing order list columns.
+	 * @return array<string, string>
+	 */
+	public function add_orders_list_column( array $columns ): array {
+		$new_columns = array();
+		$inserted    = false;
+
+		foreach ( $columns as $key => $label ) {
+			$new_columns[ $key ] = $label;
+
+			if ( 'order_status' === $key ) {
+				$new_columns['euroledger_xrpl'] = __( 'EuroLedger', 'euroledger-xrpl-gateway' );
+				$inserted = true;
+			}
+		}
+
+		if ( ! $inserted ) {
+			$new_columns['euroledger_xrpl'] = __( 'EuroLedger', 'euroledger-xrpl-gateway' );
+		}
+
+		return $new_columns;
+	}
+
+	/**
+	 * Render the legacy posts-table EuroLedger order column.
+	 *
+	 * @param string $column  Column key.
+	 * @param int    $post_id Order post id.
+	 */
+	public function render_legacy_orders_list_column( string $column, int $post_id ): void {
+		if ( 'euroledger_xrpl' !== $column ) {
+			return;
+		}
+
+		$order = wc_get_order( $post_id );
+		$this->render_orders_list_column( $order );
+	}
+
+	/**
+	 * Render the HPOS WooCommerce orders-table EuroLedger order column.
+	 *
+	 * @param string        $column Column key.
+	 * @param WC_Order|int $order  WooCommerce order object or id.
+	 */
+	public function render_hpos_orders_list_column( string $column, $order ): void {
+		if ( 'euroledger_xrpl' !== $column ) {
+			return;
+		}
+
+		if ( ! $order instanceof WC_Order ) {
+			$order = wc_get_order( $order );
+		}
+
+		$this->render_orders_list_column( $order );
 	}
 
 	/**
@@ -121,6 +187,97 @@ class EuroLedger_XRPL_Admin_Order_Meta {
 		}
 		echo '</dl>';
 		echo '</section>';
+	}
+
+
+	/**
+	 * Render one compact EuroLedger cell in the WooCommerce orders list.
+	 *
+	 * @param WC_Order|false $order WooCommerce order.
+	 */
+	private function render_orders_list_column( $order ): void {
+		if ( ! $order instanceof WC_Order ) {
+			echo '<span aria-hidden="true">&mdash;</span>';
+			return;
+		}
+
+		$payment_intent_id = trim( (string) $order->get_meta( '_euroledger_payment_intent_id' ) );
+
+		if ( '' === $payment_intent_id ) {
+			echo '<span aria-hidden="true">&mdash;</span>';
+			return;
+		}
+
+		$status        = trim( (string) $order->get_meta( '_euroledger_payment_intent_status' ) );
+		$reference     = trim( (string) $order->get_meta( '_euroledger_payment_intent_reference' ) );
+		$dashboard_url = $this->build_dashboard_payment_intent_url( $payment_intent_id );
+
+		$this->render_orders_list_assets();
+
+		echo '<div class="euroledger-xrpl-orders-list-cell">';
+		echo $this->render_orders_list_status_badge( $status );
+
+		if ( '' !== $reference ) {
+			echo '<code class="euroledger-xrpl-orders-list-cell__reference">' . esc_html( $reference ) . '</code>';
+		}
+
+		if ( '' !== $dashboard_url ) {
+			echo '<a class="euroledger-xrpl-orders-list-cell__link" href="' . esc_url( $dashboard_url ) . '" target="_blank" rel="noopener noreferrer">';
+			echo esc_html__( 'View', 'euroledger-xrpl-gateway' );
+			echo '</a>';
+		}
+
+		echo '</div>';
+	}
+
+	/**
+	 * Render inline CSS needed by the compact orders list column.
+	 */
+	private function render_orders_list_assets(): void {
+		static $rendered = false;
+
+		if ( $rendered ) {
+			return;
+		}
+
+		$rendered = true;
+		?>
+		<style>
+			.column-euroledger_xrpl { width: 150px; }
+			.euroledger-xrpl-orders-list-cell {
+				align-items: flex-start;
+				display: flex;
+				flex-direction: column;
+				gap: 5px;
+			}
+			.euroledger-xrpl-orders-list-cell__badge {
+				border-radius: 999px;
+				display: inline-flex;
+				font-size: 11px;
+				font-weight: 600;
+				line-height: 1;
+				padding: 5px 8px;
+				text-transform: uppercase;
+				white-space: nowrap;
+			}
+			.euroledger-xrpl-orders-list-cell__badge--confirmed { background: #d1e7dd; color: #0f5132; }
+			.euroledger-xrpl-orders-list-cell__badge--pending { background: #fff3cd; color: #664d03; }
+			.euroledger-xrpl-orders-list-cell__badge--expired,
+			.euroledger-xrpl-orders-list-cell__badge--cancelled { background: #f8d7da; color: #842029; }
+			.euroledger-xrpl-orders-list-cell__badge--unknown { background: #e2e3e5; color: #41464b; }
+			.euroledger-xrpl-orders-list-cell__reference {
+				background: #f6f7f7;
+				border-radius: 4px;
+				font-size: 11px;
+				max-width: 100%;
+				overflow-wrap: anywhere;
+				padding: 2px 5px;
+			}
+			.euroledger-xrpl-orders-list-cell__link {
+				font-size: 12px;
+			}
+		</style>
+		<?php
 	}
 
 	/**
@@ -341,6 +498,30 @@ class EuroLedger_XRPL_Admin_Order_Meta {
 		echo '<button type="button" class="button button-small euroledger-xrpl-admin-card__copy" data-copy-value="' . esc_attr( $value ) . '" data-copied-label="' . esc_attr__( 'Copied', 'euroledger-xrpl-gateway' ) . '">';
 		echo esc_html__( 'Copy', 'euroledger-xrpl-gateway' );
 		echo '</button>';
+	}
+
+
+	/**
+	 * Render the compact payment status badge used in WooCommerce orders list.
+	 *
+	 * @param string $status Payment intent status.
+	 * @return string
+	 */
+	private function render_orders_list_status_badge( string $status ): string {
+		$normalized_status = sanitize_html_class( strtolower( trim( $status ) ) );
+		$known_statuses    = array( 'pending', 'confirmed', 'expired', 'cancelled' );
+
+		if ( '' === $normalized_status || ! in_array( $normalized_status, $known_statuses, true ) ) {
+			$normalized_status = 'unknown';
+		}
+
+		$label = '' === $status ? __( 'Unknown', 'euroledger-xrpl-gateway' ) : $status;
+
+		return sprintf(
+			'<span class="euroledger-xrpl-orders-list-cell__badge euroledger-xrpl-orders-list-cell__badge--%1$s">%2$s</span>',
+			esc_attr( $normalized_status ),
+			esc_html( $label )
+		);
 	}
 
 	/**

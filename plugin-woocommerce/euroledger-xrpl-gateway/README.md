@@ -27,6 +27,7 @@ WooCommerce orders to processing.
 - Shows basic payment instructions on the order received page.
 - Receives signed EuroLedger webhooks and moves confirmed orders to `processing`.
 - Shows EuroLedger payment metadata on the WooCommerce admin order screen.
+- Shows a compact EuroLedger status column in WooCommerce order lists.
 
 ## Install Locally
 
@@ -115,6 +116,16 @@ Set the matching `DASHBOARD_TOKEN` value in the backend environment. Leave
 **Dashboard base URL** empty to hide the button.
 
 This panel uses WooCommerce order metadata accessors and is compatible with HPOS.
+
+## Admin Orders List
+
+WooCommerce order lists include an **EuroLedger** column for orders with
+EuroLedger metadata. The column shows a compact payment status badge, the
+payment reference and a **View** link when **Dashboard base URL** is configured.
+Orders without EuroLedger metadata show an empty dash.
+
+The column is registered for both the legacy WooCommerce orders table and the
+HPOS orders screen.
 
 ## Webhook Receiver
 
