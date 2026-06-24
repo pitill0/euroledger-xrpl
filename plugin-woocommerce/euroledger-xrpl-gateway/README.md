@@ -98,10 +98,21 @@ The dashboard link is built as:
 <Dashboard base URL>/payment-intents/<payment-intent-id>
 ```
 
-In the current local backend there is no HTML dashboard route yet. For dev, use
-`http://localhost:8000` as the base URL if you want the button to open the
-backend payment intent API JSON. Use a future dashboard URL only after that
-route exists.
+For local backend development, set **Dashboard base URL** to the token-protected
+HTML dashboard base URL:
+
+```text
+http://localhost:8000/dashboard?token=<dashboard-token>
+```
+
+The gateway preserves query parameters and builds order links as:
+
+```text
+http://localhost:8000/dashboard/payment-intents/<payment-intent-id>?token=<dashboard-token>
+```
+
+Set the matching `DASHBOARD_TOKEN` value in the backend environment. Leave
+**Dashboard base URL** empty to hide the button.
 
 This panel uses WooCommerce order metadata accessors and is compatible with HPOS.
 

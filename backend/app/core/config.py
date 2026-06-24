@@ -15,6 +15,7 @@ class Settings(BaseSettings):
 
     payment_intent_expirer_stale_after_seconds: int = 180
     webhook_delivery_worker_stale_after_seconds: int = 180
+    dashboard_token: str | None = None
 
     postgres_user: str = "euroledger"
     postgres_password: str = "euroledger"
@@ -38,6 +39,7 @@ class Settings(BaseSettings):
     @field_validator(
         "xrpl_merchant_address",
         "xrpl_issuer_address",
+        "dashboard_token",
         mode="before",
     )
     @classmethod

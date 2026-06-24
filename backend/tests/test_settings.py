@@ -68,3 +68,20 @@ def test_merchant_api_key_pepper_has_safe_length() -> None:
     )
 
     assert len(settings.merchant_api_key_pepper) >= 32
+
+
+def test_dashboard_token_defaults_to_none() -> None:
+    settings = Settings(
+        _env_file=None,
+    )
+
+    assert settings.dashboard_token is None
+
+
+def test_empty_dashboard_token_is_normalized_to_none() -> None:
+    settings = Settings(
+        _env_file=None,
+        dashboard_token="",
+    )
+
+    assert settings.dashboard_token is None

@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.api.routes import (
     auth,
+    dashboard,
     health,
     metrics,
     payment_intents,
@@ -13,6 +14,7 @@ from app.api.routes import (
 api_router = APIRouter()
 api_router.include_router(health.router)
 api_router.include_router(auth.router)
+api_router.include_router(dashboard.router)
 api_router.include_router(payment_intents.router)
 api_router.include_router(webhook_endpoints.router)
 api_router.include_router(webhook_deliveries.router)

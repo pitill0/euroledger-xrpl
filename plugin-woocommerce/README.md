@@ -45,4 +45,4 @@ delivery before a manual worker run.
 The gateway displays EuroLedger payment intent and webhook metadata on
 WooCommerce order edit screens for orders paid with EuroLedger XRPL. The admin
 panel includes status badges, copy actions for operational identifiers and an
-optional link to an external EuroLedger dashboard when configured.
+optional link to the EuroLedger payment intent dashboard when configured. See `../docs/payment-intent-dashboard.md` for the backend route and token setup.

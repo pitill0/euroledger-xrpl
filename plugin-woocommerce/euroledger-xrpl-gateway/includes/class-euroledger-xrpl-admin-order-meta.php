@@ -443,7 +443,31 @@ class EuroLedger_XRPL_Admin_Order_Meta {
 			return '';
 		}
 
-		return trailingslashit( $base_url ) . 'payment-intents/' . rawurlencode( $payment_intent_id );
+		$fragment = '';
+		$base_without_fragment = $base_url;
+
+		if ( false !== strpos( $base_without_fragment, '#' ) ) {
+			list( $base_without_fragment, $fragment ) = explode( '#', $base_without_fragment, 2 );
+		}
+
+		$query = '';
+		$base_without_query = $base_without_fragment;
+
+		if ( false !== strpos( $base_without_query, '?' ) ) {
+			list( $base_without_query, $query ) = explode( '?', $base_without_query, 2 );
+		}
+
+		$payment_intent_url = trailingslashit( $base_without_query ) . 'payment-intents/' . rawurlencode( $payment_intent_id );
+
+		if ( '' !== $query ) {
+			$payment_intent_url .= '?' . $query;
+		}
+
+		if ( '' !== $fragment ) {
+			$payment_intent_url .= '#' . $fragment;
+		}
+
+		return $payment_intent_url;
 	}
 
 	/**

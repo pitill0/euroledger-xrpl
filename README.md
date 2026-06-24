@@ -16,6 +16,8 @@ EuroLedger XRPL explores whether the XRP Ledger can act as one of those layers b
 - reconciliation support;
 - future interoperability with regulated euro stablecoins, tokenized bank money or public European digital money infrastructures.
 
+The backend also includes a small token-protected HTML payment intent dashboard for local operational inspection.
+
 ## Current Status
 
 This repository is in the preparation phase.

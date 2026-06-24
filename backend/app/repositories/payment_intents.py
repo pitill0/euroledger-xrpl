@@ -17,6 +17,14 @@ def get_payment_intent_by_id(
     return db.execute(statement).scalar_one_or_none()
 
 
+def get_payment_intent_by_id_unscoped(
+    db: Session,
+    payment_intent_id: str,
+) -> PaymentIntent | None:
+    statement = select(PaymentIntent).where(PaymentIntent.id == payment_intent_id)
+    return db.execute(statement).scalar_one_or_none()
+
+
 def get_payment_intent_by_reference(
     db: Session, reference: str, *, merchant_id: str
 ) -> PaymentIntent | None:

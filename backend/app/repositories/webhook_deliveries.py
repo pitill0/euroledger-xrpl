@@ -74,6 +74,22 @@ def list_webhook_deliveries(
     return list(db.execute(statement).scalars().all())
 
 
+def list_webhook_deliveries_for_payment_intent(
+    db: Session,
+    *,
+    payment_intent_id: str,
+    limit: int,
+) -> list[WebhookDelivery]:
+    statement = (
+        select(WebhookDelivery)
+        .where(WebhookDelivery.payment_intent_id == payment_intent_id)
+        .order_by(WebhookDelivery.created_at.desc(), WebhookDelivery.id.desc())
+        .limit(limit)
+    )
+
+    return list(db.execute(statement).scalars().all())
+
+
 def get_webhook_delivery_by_id(
     db: Session,
     delivery_id: str,
