@@ -28,6 +28,21 @@ SMOKE_CUSTOMER_EMAIL=smoke-test@example.test
 SMOKE_PRODUCT_SKU=euroledger-smoke-test-product
 ```
 
+
+## One-command WooCommerce E2E smoke tests
+
+Use these wrappers when you want the script to create a fresh WooCommerce order and then run the full confirmed or cancelled flow automatically.
+
+```bash
+cd ~/projects/euroledger-xrpl
+export MERCHANT_API_KEY='your-dev-merchant-api-key'
+
+scripts/dev/woocommerce-smoke-e2e-confirmed.sh
+scripts/dev/woocommerce-smoke-e2e-cancelled.sh
+```
+
+Each wrapper calls `woocommerce-create-test-order.sh`, exports the generated `ORDER_ID` and `PAYMENT_INTENT_ID`, then delegates to the matching smoke test script.
+
 ## WooCommerce smoke tests
 
 Run these scripts from the repository root after creating a new pending EuroLedger WooCommerce order.

@@ -51,6 +51,29 @@ SMOKE_PRODUCT_SKU=euroledger-smoke-test-product
 SMOKE_PRODUCT_NAME='EuroLedger Smoke Test Product'
 ```
 
+
+## One-command E2E flows
+
+The E2E wrappers create a fresh pending WooCommerce order and immediately run the matching smoke test. This is the preferred dev workflow once the local stacks are configured.
+
+Confirmed flow:
+
+```bash
+cd ~/projects/euroledger-xrpl
+export MERCHANT_API_KEY='your-dev-merchant-api-key'
+scripts/dev/woocommerce-smoke-e2e-confirmed.sh
+```
+
+Cancelled flow:
+
+```bash
+cd ~/projects/euroledger-xrpl
+export MERCHANT_API_KEY='your-dev-merchant-api-key'
+scripts/dev/woocommerce-smoke-e2e-cancelled.sh
+```
+
+The wrappers print the created order details, export the generated `ORDER_ID` and `PAYMENT_INTENT_ID` internally, and then run the lower-level confirmed or cancelled script.
+
 ## Confirmed payment flow
 
 Create a new pending WooCommerce order with the helper:
