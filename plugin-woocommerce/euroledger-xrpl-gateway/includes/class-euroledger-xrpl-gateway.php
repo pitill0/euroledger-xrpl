@@ -68,6 +68,10 @@ class WC_Gateway_EuroLedger_XRPL extends WC_Payment_Gateway {
 			'woocommerce_thankyou_' . $this->id,
 			array( $this, 'render_payment_instructions' )
 		);
+		add_action(
+			'woocommerce_order_details_before_order_table',
+			array( $this, 'render_payment_instructions' )
+		);
 	}
 
 	/**
@@ -368,47 +372,250 @@ class WC_Gateway_EuroLedger_XRPL extends WC_Payment_Gateway {
 	}
 
 	/**
-	 * Render basic payment instructions on the order received page.
+	 * Render customer-facing EuroLedger payment status.
 	 *
-	 * @param int $order_id WooCommerce order id.
+	 * This appears on the order received page and in My account > Orders.
+	 * The thank-you and order-details hooks can both run on the same page, so
+	 * rendering is guarded per order id to avoid duplicate blocks.
+	 *
+	 * @param int|WC_Order $order_or_id WooCommerce order id or order object.
 	 */
-	public function render_payment_instructions( $order_id ): void {
-		$order = wc_get_order( $order_id );
+	public function render_payment_instructions( $order_or_id ): void {
+		static $rendered_order_ids = array();
+
+		$order = $order_or_id instanceof WC_Order ? $order_or_id : wc_get_order( $order_or_id );
 
 		if ( ! $order instanceof WC_Order ) {
 			return;
 		}
 
-		$reference = (string) $order->get_meta( '_euroledger_payment_intent_reference' );
-		$intent_id = (string) $order->get_meta( '_euroledger_payment_intent_id' );
+		$order_id = (int) $order->get_id();
 
-		if ( '' === $reference && '' === $intent_id ) {
+		if ( isset( $rendered_order_ids[ $order_id ] ) ) {
 			return;
 		}
 
-		echo '<section class="woocommerce-order-details euroledger-xrpl-instructions">';
-		echo '<h2>' . esc_html__( 'EuroLedger XRPL payment', 'euroledger-xrpl-gateway' ) . '</h2>';
-		echo '<p>';
-		echo esc_html__(
-			'Your payment intent has been created. Send the XRPL payment using ' .
-			'this reference memo, then wait for confirmation.',
-			'euroledger-xrpl-gateway'
-		);
-		echo '</p>';
-
-		if ( '' !== $reference ) {
-			echo '<p><strong>';
-			echo esc_html__( 'Payment reference:', 'euroledger-xrpl-gateway' );
-			echo '</strong> <code>' . esc_html( $reference ) . '</code></p>';
+		if ( $this->id !== $order->get_payment_method() ) {
+			return;
 		}
 
-		if ( '' !== $intent_id ) {
-			echo '<p><strong>';
-			echo esc_html__( 'Payment intent id:', 'euroledger-xrpl-gateway' );
-			echo '</strong> <code>' . esc_html( $intent_id ) . '</code></p>';
+		$payment_intent_id = trim( (string) $order->get_meta( '_euroledger_payment_intent_id' ) );
+		$reference         = trim( (string) $order->get_meta( '_euroledger_payment_intent_reference' ) );
+
+		if ( '' === $payment_intent_id && '' === $reference ) {
+			return;
+		}
+
+		$rendered_order_ids[ $order_id ] = true;
+
+		$status              = trim( (string) $order->get_meta( '_euroledger_payment_intent_status' ) );
+		$xrpl_hash           = trim( (string) $order->get_meta( '_euroledger_xrpl_transaction_hash' ) );
+		$cancellation_reason = trim( (string) $order->get_meta( '_euroledger_payment_intent_cancellation_reason' ) );
+
+		$this->render_customer_payment_status_assets();
+
+		echo '<section class="woocommerce-order-details euroledger-xrpl-customer-status" aria-label="' . esc_attr__( 'EuroLedger XRPL payment status', 'euroledger-xrpl-gateway' ) . '">';
+		echo '<div class="euroledger-xrpl-customer-status__header">';
+		echo '<div>';
+		echo '<h2>' . esc_html__( 'EuroLedger XRPL payment', 'euroledger-xrpl-gateway' ) . '</h2>';
+		echo '<p>' . esc_html( $this->get_customer_status_message( $status ) ) . '</p>';
+		echo '</div>';
+		echo $this->render_customer_status_badge( $status );
+		echo '</div>';
+
+		echo '<dl class="euroledger-xrpl-customer-status__details">';
+		$this->render_customer_status_row(
+			__( 'Payment reference', 'euroledger-xrpl-gateway' ),
+			$reference,
+			true
+		);
+		$this->render_customer_status_row(
+			__( 'Payment intent ID', 'euroledger-xrpl-gateway' ),
+			$payment_intent_id,
+			false
+		);
+		$this->render_customer_status_row(
+			__( 'XRPL transaction hash', 'euroledger-xrpl-gateway' ),
+			$xrpl_hash,
+			false
+		);
+		$this->render_customer_status_row(
+			__( 'Cancellation reason', 'euroledger-xrpl-gateway' ),
+			$cancellation_reason,
+			false
+		);
+		echo '</dl>';
+
+		if ( 'pending' === strtolower( $status ) && '' !== $reference ) {
+			echo '<p class="euroledger-xrpl-customer-status__hint">';
+			echo esc_html__( 'Use the payment reference as the XRPL memo/reference when sending the payment. The order will update automatically after confirmation.', 'euroledger-xrpl-gateway' );
+			echo '</p>';
 		}
 
 		echo '</section>';
+	}
+
+	/**
+	 * Return a customer-facing status message.
+	 *
+	 * @param string $status Payment intent status.
+	 * @return string
+	 */
+	private function get_customer_status_message( string $status ): string {
+		switch ( strtolower( trim( $status ) ) ) {
+			case 'confirmed':
+				return __( 'Payment confirmed. Your order is now being processed.', 'euroledger-xrpl-gateway' );
+			case 'cancelled':
+				return __( 'This payment intent has been cancelled. The order is no longer awaiting this payment.', 'euroledger-xrpl-gateway' );
+			case 'expired':
+				return __( 'This payment intent has expired. The order is no longer awaiting this payment.', 'euroledger-xrpl-gateway' );
+			case 'pending':
+			default:
+				return __( 'Your payment intent is pending. Send the XRPL payment using the reference below and wait for automatic confirmation.', 'euroledger-xrpl-gateway' );
+		}
+	}
+
+	/**
+	 * Render one customer-facing status row when a value exists.
+	 *
+	 * @param string $label Field label.
+	 * @param string $value Field value.
+	 * @param bool   $highlight Whether the row should be visually highlighted.
+	 */
+	private function render_customer_status_row( string $label, string $value, bool $highlight ): void {
+		if ( '' === $value ) {
+			return;
+		}
+
+		$classes = 'euroledger-xrpl-customer-status__value';
+
+		if ( $highlight ) {
+			$classes .= ' euroledger-xrpl-customer-status__value--highlight';
+		}
+
+		echo '<dt>' . esc_html( $label ) . '</dt>';
+		echo '<dd><code class="' . esc_attr( $classes ) . '">' . esc_html( $value ) . '</code></dd>';
+	}
+
+	/**
+	 * Render customer-facing payment status badge.
+	 *
+	 * @param string $status Payment intent status.
+	 * @return string
+	 */
+	private function render_customer_status_badge( string $status ): string {
+		$normalized_status = sanitize_html_class( strtolower( trim( $status ) ) );
+		$known_statuses    = array( 'pending', 'confirmed', 'expired', 'cancelled' );
+
+		if ( '' === $normalized_status || ! in_array( $normalized_status, $known_statuses, true ) ) {
+			$normalized_status = 'unknown';
+		}
+
+		$label = '' === $status ? __( 'Unknown', 'euroledger-xrpl-gateway' ) : $status;
+
+		return sprintf(
+			'<span class="euroledger-xrpl-customer-status__badge euroledger-xrpl-customer-status__badge--%1$s">%2$s</span>',
+			esc_attr( $normalized_status ),
+			esc_html( $label )
+		);
+	}
+
+	/**
+	 * Render inline assets for the customer-facing payment status block.
+	 */
+	private function render_customer_payment_status_assets(): void {
+		static $rendered = false;
+
+		if ( $rendered ) {
+			return;
+		}
+
+		$rendered = true;
+		?>
+		<style>
+			.euroledger-xrpl-customer-status {
+				border: 1px solid #dcdcde;
+				border-radius: 8px;
+				margin: 0 0 24px;
+				overflow: hidden;
+			}
+			.euroledger-xrpl-customer-status__header {
+				align-items: flex-start;
+				background: #f6f7f7;
+				display: flex;
+				gap: 16px;
+				justify-content: space-between;
+				padding: 18px 20px;
+			}
+			.euroledger-xrpl-customer-status__header h2 {
+				margin: 0 0 6px;
+			}
+			.euroledger-xrpl-customer-status__header p {
+				margin: 0;
+			}
+			.euroledger-xrpl-customer-status__badge {
+				border-radius: 999px;
+				display: inline-flex;
+				font-size: 12px;
+				font-weight: 700;
+				line-height: 1;
+				padding: 7px 10px;
+				text-transform: uppercase;
+				white-space: nowrap;
+			}
+			.euroledger-xrpl-customer-status__badge--confirmed { background: #d1e7dd; color: #0f5132; }
+			.euroledger-xrpl-customer-status__badge--pending { background: #fff3cd; color: #664d03; }
+			.euroledger-xrpl-customer-status__badge--expired,
+			.euroledger-xrpl-customer-status__badge--cancelled { background: #f8d7da; color: #842029; }
+			.euroledger-xrpl-customer-status__badge--unknown { background: #e2e3e5; color: #41464b; }
+			.euroledger-xrpl-customer-status__details {
+				display: grid;
+				grid-template-columns: minmax(160px, 240px) minmax(0, 1fr);
+				margin: 0;
+			}
+			.euroledger-xrpl-customer-status__details dt,
+			.euroledger-xrpl-customer-status__details dd {
+				border-top: 1px solid #f0f0f1;
+				margin: 0;
+				padding: 12px 20px;
+			}
+			.euroledger-xrpl-customer-status__details dt {
+				font-weight: 700;
+			}
+			.euroledger-xrpl-customer-status__value {
+				background: #f6f7f7;
+				border-radius: 4px;
+				display: inline-block;
+				max-width: 100%;
+				overflow-wrap: anywhere;
+				padding: 4px 6px;
+			}
+			.euroledger-xrpl-customer-status__value--highlight {
+				font-size: 1.05em;
+				font-weight: 700;
+			}
+			.euroledger-xrpl-customer-status__hint {
+				border-top: 1px solid #f0f0f1;
+				margin: 0;
+				padding: 14px 20px;
+			}
+			@media (max-width: 782px) {
+				.euroledger-xrpl-customer-status__header {
+					flex-direction: column;
+				}
+				.euroledger-xrpl-customer-status__details {
+					grid-template-columns: 1fr;
+				}
+				.euroledger-xrpl-customer-status__details dt {
+					padding-bottom: 0;
+				}
+				.euroledger-xrpl-customer-status__details dd {
+					border-top: 0;
+					padding-top: 6px;
+				}
+			}
+		</style>
+		<?php
 	}
 
 	/**

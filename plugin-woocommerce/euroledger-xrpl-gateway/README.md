@@ -25,7 +25,7 @@ expire or are cancelled.
 - Creates backend payment intents during checkout.
 - Stores payment intent id, reference and status on the WooCommerce order.
 - Leaves the order `on-hold` until an external confirmation flow is added.
-- Shows basic payment instructions on the order received page.
+- Shows a customer-facing EuroLedger payment status block on the order received and view order pages.
 - Receives signed EuroLedger webhooks, moves confirmed orders to `processing` and cancels on-hold orders for expired or cancelled intents.
 - Shows EuroLedger payment metadata on the WooCommerce admin order screen.
 - Shows a compact EuroLedger status column in WooCommerce order lists.
@@ -85,6 +85,20 @@ When a customer selects EuroLedger XRPL at checkout, the plugin:
    - `_euroledger_payment_intent_created_at`;
 4. sets the order status to `on-hold`;
 5. redirects to the order received page with basic payment instructions.
+
+## Customer Order Status
+
+EuroLedger orders show a customer-facing **EuroLedger XRPL payment** block on
+the order received page and in **My account > Orders > View order**. The block
+shows the current EuroLedger status badge, the payment reference, payment intent
+id and contextual messaging for pending, confirmed, expired and cancelled
+payments. Confirmed payments can show the XRPL transaction hash, while cancelled
+payments can show the cancellation reason.
+
+The reference is highlighted while the intent is pending because the customer
+needs to use it as the XRPL memo/reference when sending the payment. The block is
+not linked to the internal EuroLedger dashboard because the dashboard URL can be
+token-protected and is intended for merchant/admin use only.
 
 ## Admin Order Screen
 

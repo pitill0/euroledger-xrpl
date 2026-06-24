@@ -167,6 +167,7 @@ Expected shape:
 
 Create a new WooCommerce order through the classic checkout and select
 EuroLedger XRPL as the payment method. The order received page should show a
+customer-facing **EuroLedger XRPL payment** block with a pending status badge,
 payment reference and payment intent id.
 
 Fetch the latest EuroLedger WooCommerce order from the dev stack:
@@ -191,6 +192,8 @@ echo "INTENT_STATUS=" . $order->get_meta("_euroledger_payment_intent_status") . 
 ```
 
 The order should be `on-hold` and the stored intent status should be `pending`.
+The same payment status block should also appear from **My account > Orders >
+View order** for the customer.
 
 ## Confirm the Payment Intent
 
