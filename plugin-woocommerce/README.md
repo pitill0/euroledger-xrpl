@@ -43,4 +43,6 @@ delivery before a manual worker run.
 ## Admin order metadata
 
 The gateway displays EuroLedger payment intent and webhook metadata on
-WooCommerce order edit screens for orders paid with EuroLedger XRPL.
+WooCommerce order edit screens for orders paid with EuroLedger XRPL. The admin
+panel includes status badges, copy actions for operational identifiers and an
+optional link to an external EuroLedger dashboard when configured.

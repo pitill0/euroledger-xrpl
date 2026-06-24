@@ -17,7 +17,8 @@ WooCommerce orders to processing.
   - merchant API key;
   - test mode;
   - debug logging;
-  - webhook secret.
+  - webhook secret;
+  - optional dashboard base URL for admin order links.
 - Keeps the gateway disabled by default.
 - Provides an admin-only backend connection check.
 - Creates backend payment intents during checkout.
@@ -57,6 +58,7 @@ Set:
 API base URL: http://localhost:8000
 Merchant API key: <merchant-api-key>
 Webhook secret: <shared-webhook-secret>
+Dashboard base URL: <optional-dashboard-url>
 Test mode: enabled
 ```
 
@@ -85,9 +87,21 @@ When a customer selects EuroLedger XRPL at checkout, the plugin:
 ## Admin Order Screen
 
 Orders with EuroLedger metadata show an **EuroLedger XRPL payment** panel in the
-WooCommerce order edit screen. The panel includes the payment intent id, payment
-reference, EuroLedger status, XRPL transaction hash and the latest webhook
-delivery metadata.
+WooCommerce order edit screen. The panel includes the payment intent id, payment reference, EuroLedger status,
+XRPL transaction hash and the latest webhook delivery metadata. It also provides
+copy actions for operational identifiers and, when **Dashboard base URL** is
+configured, a **View in EuroLedger** link for the payment intent.
+
+The dashboard link is built as:
+
+```text
+<Dashboard base URL>/payment-intents/<payment-intent-id>
+```
+
+In the current local backend there is no HTML dashboard route yet. For dev, use
+`http://localhost:8000` as the base URL if you want the button to open the
+backend payment intent API JSON. Use a future dashboard URL only after that
+route exists.
 
 This panel uses WooCommerce order metadata accessors and is compatible with HPOS.
 

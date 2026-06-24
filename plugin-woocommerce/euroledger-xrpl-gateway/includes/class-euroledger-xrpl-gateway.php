@@ -139,6 +139,16 @@ class WC_Gateway_EuroLedger_XRPL extends WC_Payment_Gateway {
 				),
 				'desc_tip'    => true,
 			),
+			'dashboard_base_url' => array(
+				'title'       => __( 'Dashboard base URL', 'euroledger-xrpl-gateway' ),
+				'type'        => 'url',
+				'default'     => '',
+				'description' => __(
+					'Optional EuroLedger dashboard URL used to link payment intents from WooCommerce orders.',
+					'euroledger-xrpl-gateway'
+				),
+				'desc_tip'    => true,
+			),
 			'test_mode'        => array(
 				'title'       => __( 'Test mode', 'euroledger-xrpl-gateway' ),
 				'type'        => 'checkbox',
