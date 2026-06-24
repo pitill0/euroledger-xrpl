@@ -28,6 +28,20 @@ class WC_Gateway_EuroLedger_XRPL extends WC_Payment_Gateway {
 	private string $merchant_api_key;
 
 	/**
+	 * Webhook secret configured for signed delivery verification.
+	 *
+	 * @var string
+	 */
+	private string $webhook_secret;
+
+	/**
+	 * Optional dashboard base URL.
+	 *
+	 * @var string
+	 */
+	private string $dashboard_base_url;
+
+	/**
 	 * Test mode flag.
 	 *
 	 * @var bool
@@ -71,6 +85,10 @@ class WC_Gateway_EuroLedger_XRPL extends WC_Payment_Gateway {
 		add_action(
 			'woocommerce_order_details_before_order_table',
 			array( $this, 'render_payment_instructions' )
+		);
+		add_action(
+			'admin_notices',
+			array( $this, 'render_admin_configuration_notices' )
 		);
 	}
 
@@ -173,7 +191,11 @@ class WC_Gateway_EuroLedger_XRPL extends WC_Payment_Gateway {
 					'euroledger-xrpl-gateway'
 				),
 			),
-			'connection_check' => array(
+			'configuration_health' => array(
+				'title' => __( 'Configuration health', 'euroledger-xrpl-gateway' ),
+				'type'  => 'configuration_health',
+			),
+			'connection_check'     => array(
 				'title' => __( 'Backend connection', 'euroledger-xrpl-gateway' ),
 				'type'  => 'connection_check',
 			),
@@ -191,6 +213,10 @@ class WC_Gateway_EuroLedger_XRPL extends WC_Payment_Gateway {
 			$this->get_option( 'api_base_url', 'http://localhost:8000' )
 		);
 		$this->merchant_api_key = $this->get_option( 'merchant_api_key', '' );
+		$this->webhook_secret   = $this->get_option( 'webhook_secret', '' );
+		$this->dashboard_base_url = trim(
+			$this->get_option( 'dashboard_base_url', '' )
+		);
 		$this->test_mode        = 'yes' === $this->get_option( 'test_mode', 'yes' );
 		$this->debug_logging    = 'yes' === $this->get_option( 'debug_logging', 'no' );
 	}
@@ -205,11 +231,338 @@ class WC_Gateway_EuroLedger_XRPL extends WC_Payment_Gateway {
 			return false;
 		}
 
-		if ( '' === $this->api_base_url || '' === $this->merchant_api_key ) {
+		if ( ! $this->has_required_checkout_configuration() ) {
 			return false;
 		}
 
 		return parent::is_available();
+	}
+
+
+	/**
+	 * Return whether checkout can safely offer this payment method.
+	 *
+	 * @return bool
+	 */
+	private function has_required_checkout_configuration(): bool {
+		return '' !== $this->api_base_url
+			&& $this->is_http_url( $this->api_base_url )
+			&& '' !== $this->merchant_api_key
+			&& '' !== $this->webhook_secret;
+	}
+
+	/**
+	 * Render configuration health on the gateway settings screen.
+	 *
+	 * @param string $key Field key.
+	 * @param array<string, mixed> $data Field data.
+	 * @return string
+	 */
+	public function generate_configuration_health_html( $key, $data ) {
+		$field_key = $this->get_field_key( $key );
+		$defaults  = array(
+			'title' => '',
+		);
+		$data      = wp_parse_args( $data, $defaults );
+
+		$html  = '<tr valign="top">';
+		$html .= '<th scope="row" class="titledesc">';
+		$html .= '<label for="' . esc_attr( $field_key ) . '">';
+		$html .= esc_html( $data['title'] );
+		$html .= '</label></th>';
+		$html .= '<td class="forminp">';
+		$html .= $this->render_configuration_health_panel();
+		$html .= '</td></tr>';
+
+		return $html;
+	}
+
+	/**
+	 * Render admin notices for blocking configuration problems.
+	 */
+	public function render_admin_configuration_notices(): void {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+
+		if ( ! $this->is_current_gateway_settings_screen() ) {
+			return;
+		}
+
+		if ( 'yes' !== $this->enabled ) {
+			return;
+		}
+
+		$blocking_messages = array();
+
+		foreach ( $this->get_configuration_health_checks() as $check ) {
+			if ( 'error' === $check['severity'] ) {
+				$blocking_messages[] = $check['message'];
+			}
+		}
+
+		if ( array() === $blocking_messages ) {
+			return;
+		}
+
+		echo '<div class="notice notice-error"><p><strong>';
+		echo esc_html__( 'EuroLedger XRPL gateway is enabled but not ready for checkout.', 'euroledger-xrpl-gateway' );
+		echo '</strong></p><ul>';
+
+		foreach ( $blocking_messages as $message ) {
+			echo '<li>' . esc_html( $message ) . '</li>';
+		}
+
+		echo '</ul></div>';
+	}
+
+	/**
+	 * Render the configuration health panel.
+	 *
+	 * @return string
+	 */
+	private function render_configuration_health_panel(): string {
+		$checks = $this->get_configuration_health_checks();
+		$counts = array(
+			'error'   => 0,
+			'warning' => 0,
+			'info'    => 0,
+			'success' => 0,
+		);
+
+		foreach ( $checks as $check ) {
+			++$counts[ $check['severity'] ];
+		}
+
+		if ( 0 < $counts['error'] ) {
+			$summary_class = 'notice-error';
+			$summary       = __( 'Configuration is incomplete. The gateway will not be offered at checkout.', 'euroledger-xrpl-gateway' );
+		} elseif ( 0 < $counts['warning'] ) {
+			$summary_class = 'notice-warning';
+			$summary       = __( 'Configuration is usable, but warnings should be reviewed before release.', 'euroledger-xrpl-gateway' );
+		} else {
+			$summary_class = 'notice-success';
+			$summary       = __( 'Required checkout configuration is present.', 'euroledger-xrpl-gateway' );
+		}
+
+		$html  = '<div class="notice inline ' . esc_attr( $summary_class ) . '"><p>';
+		$html .= esc_html( $summary );
+		$html .= '</p><ul class="euroledger-xrpl-configuration-health">';
+
+		foreach ( $checks as $check ) {
+			$html .= '<li><strong>' . esc_html( strtoupper( $check['severity'] ) ) . ':</strong> ';
+			$html .= esc_html( $check['message'] ) . '</li>';
+		}
+
+		$html .= '</ul></div>';
+
+		return $html;
+	}
+
+	/**
+	 * Build configuration health checks for the admin settings screen.
+	 *
+	 * @return array<int, array{severity: string, message: string}>
+	 */
+	private function get_configuration_health_checks(): array {
+		$checks = array();
+
+		$checks[] = array(
+			'severity' => 'yes' === $this->enabled ? 'success' : 'info',
+			'message'  => 'yes' === $this->enabled
+				? __( 'Gateway is enabled.', 'euroledger-xrpl-gateway' )
+				: __( 'Gateway is disabled. It will not appear at checkout.', 'euroledger-xrpl-gateway' ),
+		);
+
+		if ( '' === $this->api_base_url ) {
+			$checks[] = array(
+				'severity' => 'error',
+				'message'  => __( 'API base URL is required.', 'euroledger-xrpl-gateway' ),
+			);
+		} elseif ( ! $this->is_http_url( $this->api_base_url ) ) {
+			$checks[] = array(
+				'severity' => 'error',
+				'message'  => __( 'API base URL must be an HTTP or HTTPS URL.', 'euroledger-xrpl-gateway' ),
+			);
+		} else {
+			$checks[] = array(
+				'severity' => 'success',
+				'message'  => __( 'API base URL is configured.', 'euroledger-xrpl-gateway' ),
+			);
+
+			if ( $this->is_insecure_remote_url( $this->api_base_url ) ) {
+				$checks[] = array(
+					'severity' => 'warning',
+					'message'  => __( 'API base URL uses plain HTTP for a non-local host. Use HTTPS outside local development.', 'euroledger-xrpl-gateway' ),
+				);
+			}
+		}
+
+		if ( '' === $this->merchant_api_key ) {
+			$checks[] = array(
+				'severity' => 'error',
+				'message'  => __( 'Merchant API key is required before checkout can create payment intents.', 'euroledger-xrpl-gateway' ),
+			);
+		} else {
+			$checks[] = array(
+				'severity' => 'success',
+				'message'  => __( 'Merchant API key is configured.', 'euroledger-xrpl-gateway' ),
+			);
+		}
+
+		if ( '' === $this->webhook_secret ) {
+			$checks[] = array(
+				'severity' => 'error',
+				'message'  => __( 'Webhook secret is required so WooCommerce can verify EuroLedger webhook signatures.', 'euroledger-xrpl-gateway' ),
+			);
+		} else {
+			$checks[] = array(
+				'severity' => 'success',
+				'message'  => __( 'Webhook secret is configured.', 'euroledger-xrpl-gateway' ),
+			);
+		}
+
+		foreach ( $this->get_dashboard_configuration_checks() as $check ) {
+			$checks[] = $check;
+		}
+
+		return $checks;
+	}
+
+	/**
+	 * Build dashboard-specific configuration checks.
+	 *
+	 * @return array<int, array{severity: string, message: string}>
+	 */
+	private function get_dashboard_configuration_checks(): array {
+		if ( '' === $this->dashboard_base_url ) {
+			return array(
+				array(
+					'severity' => 'info',
+					'message'  => __( 'Dashboard base URL is empty. Admin dashboard links will be hidden.', 'euroledger-xrpl-gateway' ),
+				),
+			);
+		}
+
+		if ( ! $this->is_http_url( $this->dashboard_base_url ) ) {
+			return array(
+				array(
+					'severity' => 'error',
+					'message'  => __( 'Dashboard base URL must be an HTTP or HTTPS URL when configured.', 'euroledger-xrpl-gateway' ),
+				),
+			);
+		}
+
+		$checks = array(
+			array(
+				'severity' => 'success',
+				'message'  => __( 'Dashboard base URL is configured.', 'euroledger-xrpl-gateway' ),
+			),
+		);
+
+		$dashboard_parts = wp_parse_url( $this->dashboard_base_url );
+		$dashboard_path  = isset( $dashboard_parts['path'] ) ? rtrim( (string) $dashboard_parts['path'], '/' ) : '';
+		$dashboard_query = isset( $dashboard_parts['query'] ) ? (string) $dashboard_parts['query'] : '';
+
+		if ( $this->looks_like_raw_backend_api_url( $this->dashboard_base_url ) ) {
+			$checks[] = array(
+				'severity' => 'warning',
+				'message'  => __( 'Dashboard base URL looks like the raw backend API root. Direct API links require X-API-Key and will show “Missing API key” in a browser. Use the dashboard URL instead, for example /dashboard?token=....', 'euroledger-xrpl-gateway' ),
+			);
+		}
+
+		if ( '/payment-intents' === $dashboard_path || str_starts_with( $dashboard_path, '/payment-intents/' ) ) {
+			$checks[] = array(
+				'severity' => 'warning',
+				'message'  => __( 'Dashboard base URL points to the API payment-intents route. Use the HTML dashboard base URL instead.', 'euroledger-xrpl-gateway' ),
+			);
+		}
+
+		if ( '/dashboard' === $dashboard_path && ! str_contains( $dashboard_query, 'token=' ) ) {
+			$checks[] = array(
+				'severity' => 'warning',
+				'message'  => __( 'Dashboard base URL uses /dashboard without a token query parameter. The current development dashboard requires ?token=....', 'euroledger-xrpl-gateway' ),
+			);
+		}
+
+		if ( $this->is_insecure_remote_url( $this->dashboard_base_url ) ) {
+			$checks[] = array(
+				'severity' => 'warning',
+				'message'  => __( 'Dashboard base URL uses plain HTTP for a non-local host. Use HTTPS outside local development.', 'euroledger-xrpl-gateway' ),
+			);
+		}
+
+		return $checks;
+	}
+
+	/**
+	 * Return whether a URL is HTTP or HTTPS.
+	 *
+	 * @param string $url URL to inspect.
+	 * @return bool
+	 */
+	private function is_http_url( string $url ): bool {
+		$scheme = wp_parse_url( $url, PHP_URL_SCHEME );
+
+		return in_array( $scheme, array( 'http', 'https' ), true );
+	}
+
+	/**
+	 * Return whether a URL uses plain HTTP outside local development hosts.
+	 *
+	 * @param string $url URL to inspect.
+	 * @return bool
+	 */
+	private function is_insecure_remote_url( string $url ): bool {
+		$scheme = wp_parse_url( $url, PHP_URL_SCHEME );
+		$host   = wp_parse_url( $url, PHP_URL_HOST );
+
+		if ( 'http' !== $scheme || ! is_string( $host ) ) {
+			return false;
+		}
+
+		return ! $this->is_local_development_host( $host );
+	}
+
+	/**
+	 * Return whether a host is a local development host.
+	 *
+	 * @param string $host Hostname.
+	 * @return bool
+	 */
+	private function is_local_development_host( string $host ): bool {
+		$host = strtolower( $host );
+
+		return in_array( $host, array( 'localhost', '127.0.0.1', '::1' ), true )
+			|| str_ends_with( $host, '.localhost' )
+			|| str_ends_with( $host, '-dev' )
+			|| str_contains( $host, 'euroledger-' );
+	}
+
+	/**
+	 * Return whether a dashboard URL appears to be the raw backend API root.
+	 *
+	 * @param string $url Dashboard URL.
+	 * @return bool
+	 */
+	private function looks_like_raw_backend_api_url( string $url ): bool {
+		$dashboard_parts = wp_parse_url( $url );
+		$api_parts       = wp_parse_url( $this->api_base_url );
+
+		if ( ! is_array( $dashboard_parts ) || ! is_array( $api_parts ) ) {
+			return false;
+		}
+
+		$dashboard_host = isset( $dashboard_parts['host'] ) ? strtolower( (string) $dashboard_parts['host'] ) : '';
+		$api_host       = isset( $api_parts['host'] ) ? strtolower( (string) $api_parts['host'] ) : '';
+		$dashboard_port = isset( $dashboard_parts['port'] ) ? (string) $dashboard_parts['port'] : '';
+		$api_port       = isset( $api_parts['port'] ) ? (string) $api_parts['port'] : '';
+		$dashboard_path = isset( $dashboard_parts['path'] ) ? rtrim( (string) $dashboard_parts['path'], '/' ) : '';
+
+		return '' !== $dashboard_host
+			&& $dashboard_host === $api_host
+			&& $dashboard_port === $api_port
+			&& '' === $dashboard_path;
 	}
 
 	/**
@@ -807,10 +1160,13 @@ class WC_Gateway_EuroLedger_XRPL extends WC_Payment_Gateway {
 	 */
 	public function get_euroledger_config(): array {
 		return array(
-			'api_base_url'  => $this->api_base_url,
-			'test_mode'     => $this->test_mode,
-			'debug_logging' => $this->debug_logging,
-			'has_api_key'   => '' !== $this->merchant_api_key,
+			'api_base_url'        => $this->api_base_url,
+			'dashboard_base_url'  => $this->dashboard_base_url,
+			'test_mode'           => $this->test_mode,
+			'debug_logging'       => $this->debug_logging,
+			'has_api_key'         => '' !== $this->merchant_api_key,
+			'has_webhook_secret'  => '' !== $this->webhook_secret,
+			'is_checkout_ready'   => $this->has_required_checkout_configuration(),
 		);
 	}
 }

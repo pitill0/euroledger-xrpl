@@ -21,7 +21,7 @@ expire or are cancelled.
   - webhook secret;
   - optional dashboard base URL for admin order links.
 - Keeps the gateway disabled by default.
-- Provides an admin-only backend connection check.
+- Provides a configuration health panel and admin-only backend connection check.
 - Creates backend payment intents during checkout.
 - Stores payment intent id, reference and status on the WooCommerce order.
 - Leaves the order `on-hold` until an external confirmation flow is added.
@@ -64,10 +64,18 @@ Dashboard base URL: <optional-dashboard-url>
 Test mode: enabled
 ```
 
+The settings screen shows a **Configuration health** panel. The gateway only appears at checkout when the required configuration is present:
+
+1. API base URL;
+2. merchant API key;
+3. webhook secret.
+
 Use **Check backend connection** to verify:
 
 1. the backend responds to `GET /health`;
 2. the configured merchant API key is accepted by `GET /auth/me`.
+
+The health panel also warns when **Dashboard base URL** looks like the raw backend API root, points to `/payment-intents`, uses `/dashboard` without the development token query parameter, or uses plain HTTP outside local development.
 
 Only enable the gateway in local/test environments. Use the webhook secret when
 creating the backend webhook endpoint for this WordPress site.
@@ -128,7 +136,9 @@ http://localhost:8000/dashboard/payment-intents/<payment-intent-id>?token=<dashb
 ```
 
 Set the matching `DASHBOARD_TOKEN` value in the backend environment. Leave
-**Dashboard base URL** empty to hide the button.
+**Dashboard base URL** empty to hide the button. Do not set this field to the raw
+backend API root, such as `http://localhost:8000`, because browser links cannot
+send `X-API-Key` and will return `Missing API key`.
 
 This panel uses WooCommerce order metadata accessors and is compatible with HPOS.
 

@@ -266,3 +266,7 @@ Blocks support is not part of this release checklist yet.
 
 The backend dashboard token is a dev-oriented protection mechanism. A production
 dashboard would need a stronger authentication and authorization model.
+
+## Configuration health
+
+Before packaging, open `WooCommerce > Settings > Payments > EuroLedger XRPL` and confirm the **Configuration health** panel has no blocking errors. Confirm **Dashboard base URL** points to the HTML dashboard route, not the raw backend API root.

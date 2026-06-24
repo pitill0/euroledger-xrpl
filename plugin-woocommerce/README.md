@@ -22,7 +22,7 @@ sudo docker compose up -d
 
 ## Current Gateway Capabilities
 
-The experimental gateway can check backend connectivity, create backend payment
+The experimental gateway can check configuration health, verify backend connectivity, create backend payment
 intents during checkout and keep WooCommerce orders on hold while payment
 confirmation is still pending. It can also receive signed backend webhooks to
 move confirmed orders to processing and cancel on-hold orders when intents expire or are cancelled. Customer order pages show the current EuroLedger payment status, reference and terminal messages.
@@ -56,3 +56,7 @@ payment status, reference and an optional dashboard link. The admin panel
 includes status badges, copy actions for operational identifiers and an optional
 link to the EuroLedger payment intent dashboard when configured. See
 `../docs/payment-intent-dashboard.md` for the backend route and token setup.
+
+## Configuration hardening
+
+The gateway settings screen includes a **Configuration health** panel. It blocks checkout availability when required settings are missing and warns about common dashboard URL mistakes such as using the raw backend API root instead of the token-protected dashboard route. See `../docs/woocommerce-plugin-configuration-hardening.md`.
