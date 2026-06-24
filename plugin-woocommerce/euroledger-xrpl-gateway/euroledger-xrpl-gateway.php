@@ -3,7 +3,7 @@
  * Plugin Name: EuroLedger XRPL Gateway
  * Plugin URI: https://github.com/pitill0/euroledger-xrpl
  * Description: Experimental WooCommerce payment gateway for EuroLedger XRPL.
- * Version: 0.1.0
+ * Version: 0.1.1
  * Author: EuroLedger XRPL
  * License: Apache-2.0
  * Requires at least: 6.4
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'EUROLEDGER_XRPL_GATEWAY_VERSION', '0.1.0' );
+define( 'EUROLEDGER_XRPL_GATEWAY_VERSION', '0.1.1' );
 define( 'EUROLEDGER_XRPL_GATEWAY_FILE', __FILE__ );
 define( 'EUROLEDGER_XRPL_GATEWAY_DIR', plugin_dir_path( __FILE__ ) );
 
