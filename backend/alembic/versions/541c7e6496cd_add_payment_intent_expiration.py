@@ -5,15 +5,16 @@ Revises: c9b2e4a61f0d
 Create Date: 2026-06-11 15:53:16.103258
 
 """
+
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '541c7e6496cd'
-down_revision: str | None = 'c9b2e4a61f0d'
+revision: str = "541c7e6496cd"
+down_revision: str | None = "c9b2e4a61f0d"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

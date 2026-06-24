@@ -51,11 +51,14 @@ def verify_signature(
     received_signature: str,
 ) -> bool:
     signed_payload = timestamp.encode("utf-8") + b"." + raw_body
-    expected_signature = "sha256=" + hmac.new(
-        secret.encode("utf-8"),
-        signed_payload,
-        hashlib.sha256,
-    ).hexdigest()
+    expected_signature = (
+        "sha256="
+        + hmac.new(
+            secret.encode("utf-8"),
+            signed_payload,
+            hashlib.sha256,
+        ).hexdigest()
+    )
 
     return hmac.compare_digest(expected_signature, received_signature)
 

@@ -5,15 +5,16 @@ Revises: 541c7e6496cd
 Create Date: 2026-06-11 17:02:07.504939
 
 """
+
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '6125f436db49'
-down_revision: str | None = '541c7e6496cd'
+revision: str = "6125f436db49"
+down_revision: str | None = "541c7e6496cd"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -81,6 +82,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute(
-        "DROP TABLE IF EXISTS payment_intent_expirer_states"
-    )
+    op.execute("DROP TABLE IF EXISTS payment_intent_expirer_states")
