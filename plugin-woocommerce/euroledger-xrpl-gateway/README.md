@@ -4,7 +4,8 @@ Experimental WooCommerce payment gateway for EuroLedger XRPL.
 
 The gateway can create backend payment intents during checkout in a local or
 testnet environment and receive signed backend webhooks that move confirmed
-WooCommerce orders to processing.
+WooCommerce orders to processing or cancel on-hold orders when payment intents
+expire or are cancelled.
 
 ## Current Scope
 
@@ -25,7 +26,7 @@ WooCommerce orders to processing.
 - Stores payment intent id, reference and status on the WooCommerce order.
 - Leaves the order `on-hold` until an external confirmation flow is added.
 - Shows basic payment instructions on the order received page.
-- Receives signed EuroLedger webhooks and moves confirmed orders to `processing`.
+- Receives signed EuroLedger webhooks, moves confirmed orders to `processing` and cancels on-hold orders for expired or cancelled intents.
 - Shows EuroLedger payment metadata on the WooCommerce admin order screen.
 - Shows a compact EuroLedger status column in WooCommerce order lists.
 
@@ -145,11 +146,14 @@ http://euroledger-wp-dev/wp-json/euroledger-xrpl/v1/webhook
 ```
 
 The receiver verifies the EuroLedger HMAC headers and handles
-`payment_intent.confirmed` events. It finds the WooCommerce order by
+`payment_intent.confirmed`, `payment_intent.expired` and
+`payment_intent.cancelled` events. It finds the WooCommerce order by
 `_euroledger_payment_intent_id`, stores the latest webhook metadata and moves the
-order from `on-hold` to `processing`. Repeated confirmed webhooks are idempotent:
-metadata is refreshed and the order status is left unchanged when it is already
-processing or completed.
+order from `on-hold` to `processing` when confirmed. Expired and cancelled intents
+move on-hold orders to `cancelled` and store terminal metadata such as expiry,
+cancellation time and cancellation reason when available. Repeated webhooks are
+idempotent: metadata is refreshed and destructive status changes are only applied
+while the order is still on hold.
 
 Create the backend endpoint from the host with a merchant API key. In the local
 WooCommerce dev environment, prefer the `rest_route` URL because it avoids

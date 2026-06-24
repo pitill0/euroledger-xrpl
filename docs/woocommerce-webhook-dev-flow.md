@@ -286,6 +286,36 @@ _euroledger_webhook_last_event: payment_intent.confirmed
 _euroledger_webhook_last_delivery_id: <delivery-id>
 ```
 
+
+## Terminal Webhook Events
+
+The WooCommerce receiver also handles terminal non-confirmed events:
+
+```text
+payment_intent.expired
+payment_intent.cancelled
+```
+
+For these events the receiver refreshes EuroLedger metadata and moves an
+`on-hold` WooCommerce order to `cancelled`. If the order is no longer on hold,
+for example because it is already `processing`, the receiver stores the latest
+EuroLedger metadata and adds a note instead of changing the order status.
+
+Expected metadata after an expired or cancelled webhook:
+
+```text
+_euroledger_payment_intent_status: expired|cancelled
+_euroledger_webhook_last_event: payment_intent.expired|payment_intent.cancelled
+_euroledger_webhook_last_delivery_id: <delivery-id>
+```
+
+Cancelled events may also include:
+
+```text
+_euroledger_payment_intent_cancelled_at: <timestamp>
+_euroledger_payment_intent_cancellation_reason: <reason>
+```
+
 ## Troubleshooting
 
 If `docker compose exec backend ...` reports `service "backend" is not running`,

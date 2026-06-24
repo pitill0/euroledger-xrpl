@@ -571,6 +571,21 @@ class EuroLedger_XRPL_Admin_Order_Meta {
 				'copyable' => false,
 			),
 			array(
+				'label'    => __( 'Payment intent expires at', 'euroledger-xrpl-gateway' ),
+				'meta_key' => '_euroledger_payment_intent_expires_at',
+				'copyable' => false,
+			),
+			array(
+				'label'    => __( 'Payment intent cancelled at', 'euroledger-xrpl-gateway' ),
+				'meta_key' => '_euroledger_payment_intent_cancelled_at',
+				'copyable' => false,
+			),
+			array(
+				'label'    => __( 'Cancellation reason', 'euroledger-xrpl-gateway' ),
+				'meta_key' => '_euroledger_payment_intent_cancellation_reason',
+				'copyable' => false,
+			),
+			array(
 				'label'    => __( 'XRPL transaction hash', 'euroledger-xrpl-gateway' ),
 				'meta_key' => '_euroledger_xrpl_transaction_hash',
 				'copyable' => true,
