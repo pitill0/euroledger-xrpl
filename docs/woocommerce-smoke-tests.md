@@ -15,24 +15,54 @@ Configure the gateway in WooCommerce with:
 - Webhook secret: the same secret configured in the backend webhook endpoint
 - Webhook endpoint URL in backend: `http://euroledger-wp-dev/?rest_route=/euroledger-xrpl/v1/webhook`
 
-Export the merchant API key before running the scripts:
+Export the merchant API key before running the confirmed/cancelled scripts:
 
 ```bash
 export MERCHANT_API_KEY='your-dev-merchant-api-key'
 ```
 
-## Confirmed payment flow
+## Creating a pending test order
 
-Create a new WooCommerce checkout order with the EuroLedger XRPL gateway. Leave it pending/on-hold.
-
-Then run:
+You can create the pending WooCommerce order manually from the checkout, or use the helper script:
 
 ```bash
 cd ~/projects/euroledger-xrpl
+scripts/dev/woocommerce-create-test-order.sh
+```
+
+The helper creates or reuses a hidden simple product, creates a WooCommerce order, runs the EuroLedger gateway `process_payment()` method, and prints:
+
+```text
+ORDER_ID=...
+ORDER_STATUS=on-hold
+PAYMENT_INTENT_ID=...
+REFERENCE=EL-...
+EUROLEDGER_STATUS=pending
+ORDER_RECEIVED_URL=...
+```
+
+Optional helper variables:
+
+```bash
+SMOKE_PRODUCT_PRICE=5.00
+SMOKE_CURRENCY=EUR
+SMOKE_CUSTOMER_EMAIL=smoke-test@example.test
+SMOKE_PRODUCT_SKU=euroledger-smoke-test-product
+SMOKE_PRODUCT_NAME='EuroLedger Smoke Test Product'
+```
+
+## Confirmed payment flow
+
+Create a new pending WooCommerce order with the helper:
+
+```bash
+cd ~/projects/euroledger-xrpl
+export MERCHANT_API_KEY='your-dev-merchant-api-key'
+eval "$(scripts/dev/woocommerce-create-test-order.sh | tee /dev/stderr | grep -E '^(ORDER_ID|PAYMENT_INTENT_ID)=')"
 scripts/dev/woocommerce-smoke-confirmed.sh
 ```
 
-The script discovers the latest pending EuroLedger order, confirms its payment intent in the backend, waits for the webhook delivery, and verifies that the WooCommerce order becomes `processing`.
+The confirmed script confirms the payment intent in the backend, waits for the webhook delivery, and verifies that the WooCommerce order becomes `processing`.
 
 Expected final checks:
 
@@ -51,16 +81,16 @@ ORDER_ID=123 PAYMENT_INTENT_ID='...' scripts/dev/woocommerce-smoke-confirmed.sh
 
 ## Cancelled payment flow
 
-Create a new WooCommerce checkout order with the EuroLedger XRPL gateway. Leave it pending/on-hold.
-
-Then run:
+Create a second fresh pending WooCommerce order, then run the cancellation smoke test:
 
 ```bash
 cd ~/projects/euroledger-xrpl
+export MERCHANT_API_KEY='your-dev-merchant-api-key'
+eval "$(scripts/dev/woocommerce-create-test-order.sh | tee /dev/stderr | grep -E '^(ORDER_ID|PAYMENT_INTENT_ID)=')"
 scripts/dev/woocommerce-smoke-cancelled.sh
 ```
 
-The script discovers the latest pending EuroLedger order, cancels its payment intent in the backend, waits for the webhook delivery, and verifies that the WooCommerce order becomes `cancelled`.
+The cancelled script cancels the payment intent in the backend, waits for the webhook delivery, and verifies that the WooCommerce order becomes `cancelled`.
 
 Expected final checks:
 
@@ -104,4 +134,4 @@ If you previously exported `ORDER_ID` or `PAYMENT_INTENT_ID`, unset them before 
 unset ORDER_ID PAYMENT_INTENT_ID
 ```
 
-When no explicit IDs are provided, the scripts now discover candidate WooCommerce orders and verify the backend payment intent is still `pending` before using it. This avoids stale WordPress metadata from older orders whose backend intent was already confirmed, cancelled, or expired.
+When no explicit IDs are provided, the scripts discover candidate WooCommerce orders and verify the backend payment intent is still `pending` before using it. This avoids stale WordPress metadata from older orders whose backend intent was already confirmed, cancelled, or expired.
