@@ -1,3 +1,4 @@
+import pytest
 from app.core.config import Settings
 
 
@@ -70,7 +71,9 @@ def test_merchant_api_key_pepper_has_safe_length() -> None:
     assert len(settings.merchant_api_key_pepper) >= 32
 
 
-def test_dashboard_token_defaults_to_none() -> None:
+def test_dashboard_token_defaults_to_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("DASHBOARD_TOKEN", raising=False)
+
     settings = Settings(
         _env_file=None,
     )
