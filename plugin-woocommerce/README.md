@@ -1,66 +1,190 @@
-# WooCommerce Plugins
+# EuroLedger XRPL WooCommerce Integration
 
-This folder contains experimental WooCommerce integrations for EuroLedger XRPL.
+This directory contains the WooCommerce integration for the EuroLedger XRPL project.
 
-Current plugin:
+The current gateway plugin lives under:
 
 ```text
-euroledger-xrpl-gateway/
+plugin-woocommerce/euroledger-xrpl-gateway/
 ```
 
-The gateway is intentionally testnet-first and should not be used for real
-payments.
+## Current version
 
-## Local Development
+`0.1.3`
 
-A local WordPress/WooCommerce environment is available in `dev/`.
+## What is included
+
+The WooCommerce gateway allows stores to accept EuroLedger XRPL payments by connecting WooCommerce orders with the EuroLedger XRPL backend.
+
+It supports:
+
+- Classic WooCommerce checkout.
+- WooCommerce Checkout Blocks.
+- EuroLedger payment intent creation.
+- Merchant API key authentication.
+- Webhook-based payment confirmation.
+- WooCommerce order metadata updates.
+- Admin order payment details.
+- Customer-facing payment status.
+- Local development tooling.
+- Smoke and end-to-end validation scripts.
+- Plugin packaging workflow.
+
+## Plugin
+
+Main plugin path:
+
+```text
+plugin-woocommerce/euroledger-xrpl-gateway/
+```
+
+Main plugin file:
+
+```text
+plugin-woocommerce/euroledger-xrpl-gateway/euroledger-xrpl-gateway.php
+```
+
+Plugin README:
+
+```text
+plugin-woocommerce/euroledger-xrpl-gateway/README.md
+```
+
+## Local development environment
+
+A local WooCommerce development environment is available under:
+
+```text
+plugin-woocommerce/dev/
+```
+
+Start the environment:
 
 ```bash
 cd plugin-woocommerce/dev
 sudo docker compose up -d
 ```
 
-## Checkout Blocks
+Use WP-CLI:
 
-The gateway registers a minimal WooCommerce Checkout Blocks payment method that reuses the classic gateway server-side payment flow. See `../docs/woocommerce-checkout-blocks.md`.
-
-## Current Gateway Capabilities
-
-The experimental gateway can check configuration health, verify backend connectivity, create backend payment
-intents during checkout and keep WooCommerce orders on hold while payment
-confirmation is still pending. It can also receive signed backend webhooks to
-move confirmed orders to processing and cancel on-hold orders when intents expire or are cancelled. Customer order pages show the current EuroLedger payment status, reference and terminal messages.
-
-## Webhook Dev Flow
-
-The local end-to-end webhook flow is documented in:
-
-```text
-../docs/woocommerce-webhook-dev-flow.md
+```bash
+sudo docker compose --profile tools run --rm wp-cli wp plugin status euroledger-xrpl-gateway
 ```
 
-That guide covers the classic checkout requirement, the backend and WordPress
-container URLs, the local `rest_route` webhook URL, payment intent confirmation,
-delivery inspection and the case where the automatic webhook worker processes a
-delivery before a manual worker run.
+Check gateway settings:
 
-## Customer order status
+```bash
+sudo docker compose --profile tools run --rm wp-cli wp option get \
+  woocommerce_euroledger_xrpl_settings \
+  --format=json | python -m json.tool
+```
 
-Customer-facing order pages show an **EuroLedger XRPL payment** status block for
-EuroLedger orders. The block appears on the order received page and in
-**My account > Orders > View order**. It displays the payment reference, payment
-intent id, current EuroLedger status and terminal details when available.
+## Checkout support
 
-## Admin order metadata
+### Classic checkout
 
-The gateway displays EuroLedger payment intent and webhook metadata on
-WooCommerce order edit screens for orders paid with EuroLedger XRPL. It also
-adds a compact **EuroLedger** column to WooCommerce order lists with the current
-payment status, reference and an optional dashboard link. The admin panel
-includes status badges, copy actions for operational identifiers and an optional
-link to the EuroLedger payment intent dashboard when configured. See
-`../docs/payment-intent-dashboard.md` for the backend route and token setup.
+The gateway supports the classic WooCommerce checkout shortcode:
 
-## Configuration hardening
+```text
+[woocommerce_checkout]
+```
 
-The gateway settings screen includes a **Configuration health** panel. It blocks checkout availability when required settings are missing and warns about common dashboard URL mistakes such as using the raw backend API root instead of the token-protected dashboard route. See `../docs/woocommerce-plugin-configuration-hardening.md`.
+Classic checkout validation should confirm:
+
+- The EuroLedger XRPL method appears.
+- WooCommerce creates an order.
+- The gateway creates a EuroLedger payment intent.
+- The order starts as `on-hold`.
+- Webhook confirmation moves the order to `processing`.
+
+### Checkout Blocks
+
+Since version `0.1.3`, the gateway supports WooCommerce Checkout Blocks.
+
+A Checkout Block page can use:
+
+```html
+<!-- wp:woocommerce/checkout /-->
+```
+
+The gateway registers `euroledger_xrpl` as a Blocks-compatible payment method and reuses the existing server-side payment flow.
+
+Validated Checkout Blocks flow:
+
+- Store API exposes `euroledger_xrpl` as an available payment method.
+- Checkout Block can create a WooCommerce order.
+- A EuroLedger payment intent is created.
+- The order starts as `on-hold`.
+- Backend confirmation triggers webhook delivery.
+- WooCommerce updates the order to `processing`.
+
+## Validation
+
+From the repository root:
+
+```bash
+php -l plugin-woocommerce/euroledger-xrpl-gateway/euroledger-xrpl-gateway.php
+php -l plugin-woocommerce/euroledger-xrpl-gateway/includes/class-euroledger-xrpl-gateway.php
+php -l plugin-woocommerce/euroledger-xrpl-gateway/includes/class-euroledger-xrpl-blocks-payment-method.php
+node --check plugin-woocommerce/euroledger-xrpl-gateway/assets/js/blocks-checkout.js
+git diff --check -- plugin-woocommerce docs
+```
+
+## Packaging
+
+Use the repository packaging script to build a distributable plugin ZIP.
+
+Find available packaging scripts:
+
+```bash
+find . -maxdepth 3 -type f \
+  \( -name "*package*" -o -name "*release*" \) \
+  | sort
+```
+
+After creating the ZIP, inspect it before publishing:
+
+```bash
+unzip -l path/to/euroledger-xrpl-gateway.zip | head -80
+
+unzip -l path/to/euroledger-xrpl-gateway.zip | grep -Ei "dev/|\.git|node_modules|__MACOSX|\.DS_Store|\.env"
+```
+
+The second command should return no output.
+
+## Release notes
+
+### 0.1.3
+
+- Add WooCommerce Checkout Blocks support.
+- Register EuroLedger XRPL as a Store API / Blocks-compatible payment method.
+- Reuse the existing classic gateway payment flow for block-based checkout orders.
+- Validate end-to-end block checkout flow with webhook confirmation.
+- Fix WooCommerce Blocks compatibility issues found during local validation.
+- Improve gateway configuration health checks.
+
+### 0.1.2
+
+- Add gateway configuration health checks.
+- Improve admin notices for incomplete gateway configuration.
+- Document release and upgrade workflow.
+
+### 0.1.1
+
+- Add release documentation.
+- Add webhook development documentation.
+- Add smoke test and packaging workflow documentation.
+
+### 0.1.0
+
+- Initial WooCommerce gateway implementation.
+- Create EuroLedger payment intents from WooCommerce orders.
+- Store EuroLedger metadata on WooCommerce orders.
+- Receive and validate EuroLedger webhook events.
+- Update WooCommerce order status after payment confirmation.
+
+## Notes
+
+During local validation of `0.1.3`, one browser showed stale WooCommerce Admin and cart state caused by local cache, cookies, or local storage. Re-testing in a clean browser confirmed that WooCommerce Payments and the checkout flow worked correctly.
+
+When debugging WooCommerce Admin or Checkout Blocks locally, use a clean browser session if REST, cart, or Store API state appears inconsistent.
