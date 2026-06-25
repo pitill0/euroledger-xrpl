@@ -6,6 +6,7 @@
  * Version: 0.1.3
  * Author: EuroLedger XRPL
  * License: Apache-2.0
+ * License URI: https://www.apache.org/licenses/LICENSE-2.0
  * Requires at least: 6.4
  * Requires PHP: 8.0
  * WC requires at least: 8.0
