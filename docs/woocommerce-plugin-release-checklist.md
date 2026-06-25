@@ -261,8 +261,7 @@ Known limitations:
 
 The WooCommerce gateway is still experimental and testnet-first.
 
-Classic checkout is currently the supported checkout path. WooCommerce Checkout
-Blocks support is not part of this release checklist yet.
+Classic checkout remains the primary smoke-tested path. WooCommerce Checkout Blocks support is available as a minimal integration and should be checked manually when a release changes checkout behavior.
 
 The backend dashboard token is a dev-oriented protection mechanism. A production
 dashboard would need a stronger authentication and authorization model.

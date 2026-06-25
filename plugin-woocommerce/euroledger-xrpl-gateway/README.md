@@ -80,6 +80,10 @@ The health panel also warns when **Dashboard base URL** looks like the raw backe
 Only enable the gateway in local/test environments. Use the webhook secret when
 creating the backend webhook endpoint for this WordPress site.
 
+## Checkout Blocks
+
+The plugin registers `euroledger_xrpl` for WooCommerce Checkout Blocks when WooCommerce Blocks is available. The Blocks integration uses the configured title and description, respects the same configuration health requirements and reuses the existing server-side `process_payment()` path. See `../../docs/woocommerce-checkout-blocks.md`.
+
 ## Checkout Flow
 
 When a customer selects EuroLedger XRPL at checkout, the plugin:

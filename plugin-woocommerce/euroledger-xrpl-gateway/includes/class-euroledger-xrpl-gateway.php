@@ -278,6 +278,23 @@ class WC_Gateway_EuroLedger_XRPL extends WC_Payment_Gateway {
 	}
 
 	/**
+	 * Determine whether the current admin page is this gateway settings screen.
+	 */
+	private function is_current_gateway_settings_screen(): bool {
+		if ( ! is_admin() ) {
+			return false;
+		}
+
+		$page    = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
+		$tab     = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : '';
+		$section = isset( $_GET['section'] ) ? sanitize_text_field( wp_unslash( $_GET['section'] ) ) : '';
+
+		return 'wc-settings' === $page
+			&& 'checkout' === $tab
+			&& $this->id === $section;
+	}
+
+	/**
 	 * Render admin notices for blocking configuration problems.
 	 */
 	public function render_admin_configuration_notices(): void {

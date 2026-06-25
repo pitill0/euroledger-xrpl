@@ -96,3 +96,25 @@ function euroledger_xrpl_gateway_register( array $gateways ): array {
 	return $gateways;
 }
 add_filter( 'woocommerce_payment_gateways', 'euroledger_xrpl_gateway_register' );
+
+/**
+ * Register EuroLedger XRPL for WooCommerce Checkout Blocks.
+ */
+function euroledger_xrpl_gateway_register_blocks_payment_method(): void {
+	if ( ! class_exists( \Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType::class ) ) {
+		return;
+	}
+
+	require_once EUROLEDGER_XRPL_GATEWAY_DIR . 'includes/class-euroledger-xrpl-blocks-payment-method.php';
+
+	add_action(
+		'woocommerce_blocks_payment_method_type_registration',
+		static function ( $payment_method_registry ): void {
+			$payment_method_registry->register( new EuroLedger_XRPL_Blocks_Payment_Method() );
+		}
+	);
+}
+add_action(
+	'woocommerce_blocks_loaded',
+	'euroledger_xrpl_gateway_register_blocks_payment_method'
+);

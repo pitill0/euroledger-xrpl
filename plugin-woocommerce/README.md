@@ -20,6 +20,10 @@ cd plugin-woocommerce/dev
 sudo docker compose up -d
 ```
 
+## Checkout Blocks
+
+The gateway registers a minimal WooCommerce Checkout Blocks payment method that reuses the classic gateway server-side payment flow. See `../docs/woocommerce-checkout-blocks.md`.
+
 ## Current Gateway Capabilities
 
 The experimental gateway can check configuration health, verify backend connectivity, create backend payment

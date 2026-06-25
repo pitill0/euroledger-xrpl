@@ -57,12 +57,11 @@ Test mode: enabled
 Use **Check backend connection** to verify the backend health endpoint and the
 merchant API key before testing checkout.
 
-## Classic Checkout Requirement
+## Checkout mode
 
-The current gateway implements the classic WooCommerce payment gateway flow. It
-does not yet register a WooCommerce Blocks payment method.
+The gateway supports the classic WooCommerce checkout and registers a minimal WooCommerce Checkout Blocks payment method. The webhook flow is shared by both checkout modes.
 
-For local testing, use classic checkout pages:
+For local smoke tests, classic checkout pages remain the most deterministic path:
 
 ```bash
 cd ~/projects/euroledger-xrpl/plugin-woocommerce/dev
