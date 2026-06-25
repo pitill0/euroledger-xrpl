@@ -105,8 +105,8 @@ Current WooCommerce gateway version:
 0.1.3
 ```
 
-## Internal documents
+## Internal planning
 
-- [Internal roadmap](internal/roadmap.md)
+Internal planning documents are intentionally not included in the public repository.
 
-Internal documents are useful while developing the project, but should be reviewed before making the repository public.
+Public-facing roadmap items are captured through the documentation index, release notes, and module README files under `sdk/`, `tests/`, and `worker/`.
