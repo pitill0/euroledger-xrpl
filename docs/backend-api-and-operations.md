@@ -310,17 +310,3 @@ docker compose logs --tail 100 xrpl-worker
 docker compose logs --tail 100 payment-intent-expirer
 docker compose logs --tail 100 webhook-worker
 ```
-
-## Publication notes
-
-Before making the repository public, review:
-
-- local-only references;
-- `.env` and secret handling;
-- self-hosted runner notes;
-- dashboard token warnings;
-- generated files such as `__pycache__`, `.pyc`, local ZIPs, and `dist/` artifacts.
-
-See:
-
-- [Publication readiness plan](publication-readiness-plan.md)

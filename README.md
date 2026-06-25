@@ -174,7 +174,6 @@ Key documents:
 - [Merchant webhook operations](docs/merchant-webhook-operations.md)
 - [Observability](docs/observability.md)
 - [CI](docs/ci.md)
-- [Publication readiness plan](docs/publication-readiness-plan.md)
 
 ## Observability and alerting
 
@@ -202,10 +201,6 @@ Release documentation currently focuses on the WooCommerce gateway:
 - [WooCommerce gateway 0.1.3 public release notes](docs/releases/woocommerce-gateway-0.1.3-public.md)
 
 Generated release ZIPs belong in `dist/`, which is intentionally ignored by Git.
-
-## Development notes
-
-This repository is still evolving toward a public-ready structure. Before public release, the project should complete the documentation, licensing and publication-readiness tasks described in [Publication readiness plan](docs/publication-readiness-plan.md).
 
 ## License
 

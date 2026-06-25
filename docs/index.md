@@ -9,7 +9,6 @@ This index maps the main documentation areas for EuroLedger XRPL.
 - [Scope](scope.md)
 - [Vision](vision.md)
 - [Legal disclaimer](legal-disclaimer.md)
-- [Publication readiness plan](publication-readiness-plan.md)
 
 ## Backend and API
 

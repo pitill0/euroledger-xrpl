@@ -365,4 +365,3 @@ Related documentation:
 - [CI](ci.md)
 - [WooCommerce Checkout Blocks](woocommerce-checkout-blocks.md)
 - [WooCommerce merchant installation guide](woocommerce-merchant-installation-guide.md)
-- [Publication readiness plan](publication-readiness-plan.md)
