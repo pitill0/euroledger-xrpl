@@ -202,3 +202,10 @@ Webhook delivery ID, if available
 Relevant WooCommerce order notes
 Relevant WordPress/PHP logs
 ```
+
+## Related documentation
+
+- [WooCommerce integration README](../plugin-woocommerce/README.md)
+- [Gateway plugin README](../plugin-woocommerce/euroledger-xrpl-gateway/README.md)
+- [WooCommerce Checkout Blocks](woocommerce-checkout-blocks.md)
+- [WooCommerce gateway 0.1.3 release notes](woocommerce-gateway-0.1.3.md)

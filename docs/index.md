@@ -1,75 +1,100 @@
-# Documentation Index
+# EuroLedger XRPL Documentation Index
 
-This index is the main entry point for EuroLedger XRPL documentation.
+This index maps the main documentation areas for EuroLedger XRPL.
 
-## Project overview
+## Start here
 
-- [Vision](vision.md) — long-term project direction and motivation.
-- [Scope](scope.md) — what the project includes and what it explicitly does not include.
-- [Architecture](architecture.md) — current high-level architecture notes.
-- [Legal disclaimer](legal-disclaimer.md) — legal and financial-service disclaimer.
-- [Publication readiness plan](publication-readiness-plan.md) — tasks before making the repository public.
+- [Project overview](../README.md)
+- [Architecture](architecture.md)
+- [Scope](scope.md)
+- [Vision](vision.md)
+- [Legal disclaimer](legal-disclaimer.md)
+- [Publication readiness plan](publication-readiness-plan.md)
 
-## Backend and payment intents
+## Backend and API
 
-- [Backend README](../backend/README.md) — local backend development, API docs, workers and tests.
-- [Payment intent expiration](payment-intent-expiration.md) — expiration behavior and worker flow.
-- [Payment intent dashboard](payment-intent-dashboard.md) — token-protected operational dashboard.
+- [Backend README](../backend/README.md)
+- [Payment intent expiration](payment-intent-expiration.md)
+- [Payment intent dashboard](payment-intent-dashboard.md)
+- [CI](ci.md)
+
+## XRPL payment processing
+
+The XRPL worker scans account transactions, extracts payment references from memos, validates candidate payments, and confirms matching payment intents.
+
+Relevant documentation:
+
+- [Architecture](architecture.md)
+- [Payment intent expiration](payment-intent-expiration.md)
 
 ## Merchant webhooks
 
-- [Merchant webhooks](merchant-webhooks.md) — webhook endpoint model and event delivery.
-- [Merchant webhook operations](merchant-webhook-operations.md) — operational procedures for webhook delivery.
-- [Webhook notifications](webhook-notifications.md) — webhook event notification behavior.
-- [Webhook receiver examples](webhook-receiver-examples.md) — example receiver documentation.
-- [Standalone webhook receiver example](../examples/webhook_receiver_stdlib.py) — Python stdlib receiver example.
+Merchant webhooks notify external systems when EuroLedger payment intents change state.
+
+Core documentation:
+
+- [Merchant webhooks](merchant-webhooks.md)
+- [Merchant webhook operations](merchant-webhook-operations.md)
+- [Webhook notifications](webhook-notifications.md)
+- [Webhook receiver examples](webhook-receiver-examples.md)
 
 ## WooCommerce gateway
 
-- [WooCommerce integration README](../plugin-woocommerce/README.md) — overview of the WooCommerce integration directory.
-- [Gateway plugin README](../plugin-woocommerce/euroledger-xrpl-gateway/README.md) — plugin features, configuration and validation.
-- [WooCommerce development environment](../plugin-woocommerce/dev/README.md) — local WordPress/WooCommerce dev stack.
-- [Merchant installation guide](woocommerce-merchant-installation-guide.md) — merchant-facing installation and configuration guide.
-- [Checkout Blocks](woocommerce-checkout-blocks.md) — Checkout Blocks support and validation notes.
-- [Webhook development flow](woocommerce-webhook-dev-flow.md) — WooCommerce webhook receiver development flow.
-- [Smoke tests](woocommerce-smoke-tests.md) — local WooCommerce smoke and e2e tests.
-- [Configuration hardening](woocommerce-plugin-configuration-hardening.md) — gateway configuration validation and admin health checks.
-- [Packaging](woocommerce-plugin-packaging.md) — plugin ZIP packaging workflow.
-- [Versioning](woocommerce-plugin-versioning.md) — plugin versioning workflow.
-- [Release checklist](woocommerce-plugin-release-checklist.md) — release preparation checklist.
-- [Gateway 0.1.3 release notes](woocommerce-gateway-0.1.3.md) — developer-facing release notes for `0.1.3`.
+The WooCommerce gateway connects WooCommerce orders with EuroLedger XRPL payment intents.
 
-## Observability, alerts and automation
+### Merchant-facing documentation
 
-- [Observability](observability.md) — Prometheus, Grafana and metrics overview.
-- [Alerting](alerting.md) — alerting setup and behavior.
-- [Alertmanager routing](alertmanager-routing.md) — Alertmanager routing configuration.
-- [n8n Alertmanager workflow](n8n-alertmanager-workflow.md) — n8n workflow for Alertmanager events.
-- [n8n Telegram notifications](n8n-telegram-notifications.md) — Telegram notification workflow.
-- [Alertmanager n8n workflow exports](../automation/n8n/) — workflow JSON exports.
+Read these when installing or configuring the plugin in a store:
 
-## CI and quality
+- [WooCommerce merchant installation guide](woocommerce-merchant-installation-guide.md)
+- [WooCommerce gateway 0.1.3 release notes](woocommerce-gateway-0.1.3.md)
+- [WooCommerce gateway 0.1.3 public release notes](releases/woocommerce-gateway-0.1.3-public.md)
 
-- [CI](ci.md) — continuous integration notes.
-- [Backend test suite](../backend/tests/) — backend pytest tests.
-- [Development scripts](../scripts/dev/README.md) — local scripts for packaging, versioning and WooCommerce smoke tests.
+### Plugin developer documentation
+
+Read these when developing, testing, or maintaining the WooCommerce plugin:
+
+- [WooCommerce integration README](../plugin-woocommerce/README.md)
+- [Gateway plugin README](../plugin-woocommerce/euroledger-xrpl-gateway/README.md)
+- [WooCommerce webhook development flow](woocommerce-webhook-dev-flow.md)
+- [WooCommerce Checkout Blocks](woocommerce-checkout-blocks.md)
+- [WooCommerce smoke tests](woocommerce-smoke-tests.md)
+
+### Release and operations documentation
+
+Read these when preparing a plugin release or validating configuration:
+
+- [WooCommerce plugin packaging](woocommerce-plugin-packaging.md)
+- [WooCommerce plugin release checklist](woocommerce-plugin-release-checklist.md)
+- [WooCommerce plugin versioning](woocommerce-plugin-versioning.md)
+- [WooCommerce plugin configuration hardening](woocommerce-plugin-configuration-hardening.md)
+
+## Observability and alerting
+
+EuroLedger includes Prometheus metrics, Grafana dashboards, Alertmanager routing, and n8n Telegram notification workflows.
+
+- [Observability](observability.md)
+- [Alerting](alerting.md)
+- [Alertmanager routing](alertmanager-routing.md)
+- [n8n Alertmanager workflow](n8n-alertmanager-workflow.md)
+- [n8n Telegram notifications](n8n-telegram-notifications.md)
 
 ## Releases
 
+WooCommerce gateway release documentation:
+
 - [WooCommerce gateway 0.1.1](releases/woocommerce-gateway-0.1.1.md)
 - [WooCommerce gateway 0.1.2](releases/woocommerce-gateway-0.1.2.md)
-- [WooCommerce gateway 0.1.3 public release notes](releases/woocommerce-gateway-0.1.3-public.md)
+- [WooCommerce gateway 0.1.3 public release](releases/woocommerce-gateway-0.1.3-public.md)
 
-## Internal planning
+Current WooCommerce gateway version:
 
-- [Internal roadmap](internal/roadmap.md) — internal planning notes. Review before public release.
+```text
+0.1.3
+```
 
-## Suggested reading paths
+## Internal documents
 
-For backend development, start with [Backend README](../backend/README.md), then read [Architecture](architecture.md), [Merchant webhooks](merchant-webhooks.md), and [Observability](observability.md).
+- [Internal roadmap](internal/roadmap.md)
 
-For WooCommerce gateway work, start with [WooCommerce integration README](../plugin-woocommerce/README.md), then read [Gateway plugin README](../plugin-woocommerce/euroledger-xrpl-gateway/README.md), [Checkout Blocks](woocommerce-checkout-blocks.md), and [Smoke tests](woocommerce-smoke-tests.md).
-
-For merchant installation, start with [Merchant installation guide](woocommerce-merchant-installation-guide.md).
-
-For public release preparation, start with [Publication readiness plan](publication-readiness-plan.md).
+Internal documents are useful while developing the project, but should be reviewed before making the repository public.
