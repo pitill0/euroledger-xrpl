@@ -13,10 +13,21 @@ This index maps the main documentation areas for EuroLedger XRPL.
 
 ## Backend and API
 
+The backend is the system of record for merchants, payment intents, XRPL validation, webhook delivery, and operational metrics.
+
+Start here:
+
 - [Backend README](../backend/README.md)
+- [Backend API and operations](backend-api-and-operations.md)
 - [Payment intent expiration](payment-intent-expiration.md)
 - [Payment intent dashboard](payment-intent-dashboard.md)
 - [CI](ci.md)
+
+### Backend roles
+
+- API developers: [Backend README](../backend/README.md) and [Backend API and operations](backend-api-and-operations.md)
+- Operators: [Payment intent expiration](payment-intent-expiration.md), [Observability](observability.md), and [Alerting](alerting.md)
+- Integrators: [Merchant webhooks](merchant-webhooks.md), [Webhook receiver examples](webhook-receiver-examples.md), and [WooCommerce merchant installation guide](woocommerce-merchant-installation-guide.md)
 
 ## XRPL payment processing
 
@@ -25,6 +36,7 @@ The XRPL worker scans account transactions, extracts payment references from mem
 Relevant documentation:
 
 - [Architecture](architecture.md)
+- [Backend API and operations](backend-api-and-operations.md)
 - [Payment intent expiration](payment-intent-expiration.md)
 
 ## Merchant webhooks

@@ -1,38 +1,49 @@
 # EuroLedger XRPL Backend
 
-FastAPI backend and XRPL payment worker for the EuroLedger XRPL proof of concept.
+FastAPI backend, PostgreSQL persistence, XRPL payment processing workers, merchant webhook delivery, and operational endpoints for EuroLedger XRPL.
 
-The backend currently provides:
+The backend is the core runtime of EuroLedger XRPL. It creates payment intents, validates and confirms XRPL payments, expires stale intents, stores merchant configuration, and delivers signed webhook notifications to merchant systems.
 
-- payment intent creation and lookup;
-- EuroLedger payment reference generation;
-- payment intent lifecycle management;
-- merchant webhook endpoint management;
-- webhook delivery worker support;
-- XRPL Testnet transaction retrieval;
-- XRPL payment validation and confirmation;
-- incremental account synchronization;
-- persistent worker cursor management;
-- continuous XRPL polling through a separate Compose service.
+## Runtime components
 
-## Local Development
+The backend stack is composed of:
 
-Run the local development stack from the repository root:
-
-```bash
-docker compose up --build
+```text
+FastAPI backend
+PostgreSQL
+XRPL worker
+Payment intent expirer
+Webhook delivery worker
+Prometheus metrics endpoint
+Optional dashboard view
 ```
 
-The command must be executed from the root directory of the repository, where `docker-compose.yml` is located.
+The services share the same backend application image but run as independent processes.
 
-Example:
+## Main capabilities
+
+- Merchant-scoped API key authentication.
+- Payment intent creation, listing, lookup, cancellation, confirmation, and CSV export.
+- Idempotent payment intent creation through `Idempotency-Key`.
+- Payment reference generation for XRPL memo-based reconciliation.
+- XRPL Testnet transaction scanning and payment validation.
+- Payment intent expiration.
+- Merchant webhook endpoint management.
+- Signed merchant webhook delivery with retries.
+- Worker state persistence and health reporting.
+- Prometheus metrics.
+- Development dashboard for payment intent inspection.
+
+## Local development
+
+Run the local development stack from the repository root:
 
 ```bash
 cd ~/projects/euroledger-xrpl
 docker compose up --build
 ```
 
-Run the services in the background:
+Run in the background:
 
 ```bash
 docker compose up --build -d
@@ -54,14 +65,106 @@ Expected response:
 }
 ```
 
-## API Docs
+Readiness check:
+
+```bash
+curl http://localhost:8000/health/ready
+```
+
+The readiness endpoint verifies database availability and Alembic migration state.
+
+## API documentation
 
 When the backend is running:
 
-- Swagger UI: http://localhost:8000/docs
-- OpenAPI JSON: http://localhost:8000/openapi.json
+```text
+Swagger UI:   http://localhost:8000/docs
+OpenAPI JSON: http://localhost:8000/openapi.json
+```
 
-## Quality Checks
+Most merchant API endpoints require:
+
+```text
+X-API-Key: <merchant-api-key>
+```
+
+## Endpoint overview
+
+### Authentication
+
+```text
+GET /auth/me
+```
+
+Returns the authenticated merchant for the supplied API key.
+
+### Payment intents
+
+```text
+POST /payment-intents
+GET /payment-intents
+GET /payment-intents/export.csv
+GET /payment-intents/by-reference/{reference}
+GET /payment-intents/{payment_intent_id}
+POST /payment-intents/{payment_intent_id}/confirm
+POST /payment-intents/{payment_intent_id}/cancel
+POST /payment-intents/detected-payments
+```
+
+Payment intents are scoped to the authenticated merchant.
+
+### Webhook endpoints
+
+```text
+POST /webhook-endpoints
+GET /webhook-endpoints
+GET /webhook-endpoints/{endpoint_id}
+PATCH /webhook-endpoints/{endpoint_id}
+DELETE /webhook-endpoints/{endpoint_id}
+POST /webhook-endpoints/{endpoint_id}/test
+```
+
+Webhook endpoint secrets are accepted on create/update and are not returned by the API.
+
+### Webhook deliveries
+
+```text
+GET /webhook-deliveries
+GET /webhook-deliveries/{delivery_id}
+POST /webhook-deliveries/{delivery_id}/retry
+```
+
+Delivery records are scoped to the authenticated merchant.
+
+### Operations
+
+```text
+GET /health
+GET /health/live
+GET /health/ready
+GET /worker-status
+GET /metrics
+GET /dashboard/payment-intents/{payment_intent_id}?token=...
+```
+
+The dashboard route is intended for development and operational inspection. It is disabled unless `DASHBOARD_TOKEN` is configured.
+
+## Database migrations
+
+Apply all pending migrations:
+
+```bash
+docker compose exec backend alembic upgrade head
+```
+
+Create a new migration:
+
+```bash
+docker compose exec backend \
+  alembic revision --autogenerate -m "migration message"
+```
+
+## Quality checks
 
 Run Ruff linting:
 
@@ -81,153 +184,171 @@ Run the test suite:
 docker compose exec backend pytest
 ```
 
-## Database Migrations
+## Payment intent lifecycle
 
-Create an Alembic migration:
-
-```bash
-docker compose exec backend   alembic revision --autogenerate -m "migration message"
-```
-
-Apply all pending migrations:
-
-```bash
-docker compose exec backend alembic upgrade head
-```
-
-## Merchant Webhooks
-
-Merchants can configure webhook endpoints to receive notifications when payment
-intents are confirmed, expired or cancelled.
-
-See:
+A normal payment intent lifecycle is:
 
 ```text
-../docs/merchant-webhooks.md
-../docs/merchant-webhook-operations.md
-../docs/webhook-receiver-examples.md
-../examples/webhook_receiver_stdlib.py
+pending
+→ confirmed
 ```
 
-## XRPL Worker
+Other terminal states:
 
-The XRPL worker runs as a separate Compose service from the FastAPI backend.
+```text
+expired
+cancelled
+```
 
-It continuously synchronizes transactions for the configured XRPL Testnet merchant account and reuses the ledger cursor persisted in PostgreSQL.
+Creation flow:
 
-The worker service executes a command equivalent to:
+```text
+Merchant API request
+→ backend validates payload and API key
+→ payment reference generated
+→ payment intent stored
+→ merchant displays payment instructions
+```
+
+Confirmation flow:
+
+```text
+XRPL transaction observed
+→ memo reference extracted
+→ amount/currency/destination validated
+→ payment intent confirmed
+→ webhook deliveries queued
+→ merchant systems notified
+```
+
+## Workers
+
+### XRPL worker
+
+The XRPL worker runs as a separate Compose service. It scans XRPL account transactions and confirms matching payment intents.
+
+Typical command:
 
 ```text
 xrpl-worker --testnet --limit 20 --poll-interval 30
 ```
 
-The transaction limit and polling interval can be configured through:
+Configuration:
 
 ```env
 XRPL_WORKER_LIMIT=20
 XRPL_WORKER_POLL_INTERVAL=30
-```
-
-The XRPL merchant address must also be configured:
-
-```env
 XRPL_MERCHANT_ADDRESS=r...
 ```
 
-The XRPL secret or seed is not required for read-only `account_tx` synchronization and must not be committed to the repository.
+The XRPL secret or seed is not required for read-only synchronization and must not be committed.
 
-### Start the Complete Stack
-
-```bash
-docker compose up --build
-```
-
-Or in the background:
-
-```bash
-docker compose up --build -d
-```
-
-### Inspect Worker Logs
+Inspect worker logs:
 
 ```bash
 docker compose logs -f xrpl-worker
 ```
 
-Exit log streaming with `Ctrl+C`. This does not stop the worker container.
-
-### Stop and Start Only the Worker
-
-Stop the worker without stopping the API or PostgreSQL:
+Run a one-shot sync:
 
 ```bash
-docker compose stop xrpl-worker
+docker compose exec backend \
+  xrpl-worker --testnet --limit 20
 ```
 
-Start it again:
+Run against an offline fixture:
 
 ```bash
-docker compose start xrpl-worker
+docker compose exec backend \
+  xrpl-worker --fixtures /app/fixtures/xrpl/empty_transactions.json
 ```
 
-### Recreate Only the Worker
+### Payment intent expirer
 
-After changing its configuration or image:
+The expirer marks stale pending payment intents as expired.
 
-```bash
-docker compose up -d --build xrpl-worker
-```
-
-### Run Without the Worker
-
-Start only PostgreSQL and the API:
-
-```bash
-docker compose up -d postgres backend
-```
-
-### One-shot Execution
-
-Run a single Testnet synchronization manually:
-
-```bash
-docker compose exec backend   xrpl-worker --testnet --limit 20
-```
-
-Run the worker against an offline fixture:
-
-```bash
-docker compose exec backend   xrpl-worker --fixtures /app/fixtures/xrpl/empty_transactions.json
-```
-
-### Persistent Synchronization Cursor
-
-The worker stores its synchronization state in PostgreSQL using the worker name:
+Typical command:
 
 ```text
-xrpl-payment-worker
+payment-intent-expirer --limit 100 --poll-interval 60
 ```
 
-Inspect the current cursor:
+Configuration:
+
+```env
+PAYMENT_INTENT_EXPIRER_LIMIT=100
+PAYMENT_INTENT_EXPIRER_POLL_INTERVAL=60
+```
+
+Inspect logs:
 
 ```bash
-docker compose exec postgres   psql -U euroledger -d euroledger   -c "select worker_name, last_ledger_index, updated_at from worker_states;"
+docker compose logs -f payment-intent-expirer
 ```
 
-The worker does not expose network ports. It shares the backend image and database while running as an independent process.
+### Webhook delivery worker
 
-## Current Status
+The webhook worker sends pending merchant webhook deliveries.
 
-The proof of concept currently includes:
+Typical command:
 
-- FastAPI and PostgreSQL services;
-- SQLAlchemy and Alembic persistence;
-- payment intent creation, lookup and lifecycle rules;
-- XRPL transaction parsing and validation;
-- Testnet `account_tx` pagination;
-- persistent incremental synchronization;
-- one-shot and continuous polling worker modes;
-- Ruff and Pytest quality checks;
-- Gitea Actions continuous integration.
+```text
+webhook-worker --limit 100 --timeout 10 --max-attempts 5 --poll-interval 10
+```
 
-The project remains under active development and is not intended for production financial use.
+Inspect logs:
+
+```bash
+docker compose logs -f webhook-worker
+```
+
+## Merchant webhooks
+
+Merchants can configure webhook endpoints to receive signed notifications when payment intents reach terminal states.
+
+Core docs:
+
+```text
+docs/merchant-webhooks.md
+docs/merchant-webhook-operations.md
+docs/webhook-notifications.md
+docs/webhook-receiver-examples.md
+examples/webhook_receiver_stdlib.py
+```
+
+Supported terminal events:
+
+```text
+payment_intent.confirmed
+payment_intent.expired
+payment_intent.cancelled
+```
+
+## Observability
+
+Prometheus metrics are exposed at:
+
+```text
+GET /metrics
+```
+
+Related docs:
+
+```text
+docs/observability.md
+docs/alerting.md
+docs/alertmanager-routing.md
+docs/n8n-alertmanager-workflow.md
+docs/n8n-telegram-notifications.md
+```
+
+## Related documentation
+
+- [Architecture](../docs/architecture.md)
+- [Backend API and operations](../docs/backend-api-and-operations.md)
+- [Payment intent expiration](../docs/payment-intent-expiration.md)
+- [Payment intent dashboard](../docs/payment-intent-dashboard.md)
+- [Merchant webhooks](../docs/merchant-webhooks.md)
+- [Merchant webhook operations](../docs/merchant-webhook-operations.md)
+- [Observability](../docs/observability.md)
+- [CI](../docs/ci.md)
